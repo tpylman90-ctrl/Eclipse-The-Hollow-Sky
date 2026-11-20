@@ -1,0 +1,63 @@
+; Engine configuration file.
+; ECLIPSE: THE HOLLOW SKY
+; Original, procedural Godot 4 project. No proprietary assets.
+
+config_version=5
+
+[application]
+
+config/name="ECLIPSE: THE HOLLOW SKY"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.5", "GL Compatibility")
+run/low_processor_mode=false
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+window/handheld/orientation=1
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/default_filters/use_nearest_mipmap_filter=false
+environment/defaults/default_clear_color=Color(0.039, 0.055, 0.125, 1)
+
+[physics]
+
+common/physics_ticks_per_second=60
+
+[input]
+
+steer_left={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":65), Object(InputEventKey,"physical_keycode":4194319), Object(InputEventJoypadMotion,"axis":0,"axis_value":-1.0)]
+}
+steer_right={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":68), Object(InputEventKey,"physical_keycode":4194321), Object(InputEventJoypadMotion,"axis":0,"axis_value":1.0)]
+}
+steer_up={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":87), Object(InputEventKey,"physical_keycode":4194320), Object(InputEventJoypadMotion,"axis":1,"axis_value":-1.0)]
+}
+steer_down={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":83), Object(InputEventKey,"physical_keycode":4194322), Object(InputEventJoypadMotion,"axis":1,"axis_value":1.0)]
+}
+boost={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":32), Object(InputEventJoypadButton,"button_index":0)]
+}
+brake={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194325), Object(InputEventJoypadButton,"button_index":1)]
+}
+start_game={
+"deadzone": 0.2,
+"events": [Object(InputEventKey,"physical_keycode":4194309), Object(InputEventJoypadButton,"button_index":7)]
+}
