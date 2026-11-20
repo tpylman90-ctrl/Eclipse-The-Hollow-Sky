@@ -1,0 +1,16 @@
+# Godot cache / import artifacts
+.godot/
+.import/
+.export/
+export.cfg
+*.tmp
+
+# Exported artifacts (CI publishes them separately)
+build/
+dist/
+
+# Local editor/OS state
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
