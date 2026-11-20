@@ -4,6 +4,7 @@ extends Node3D
 const WorldScript = preload("res://scripts/sky_world.gd")
 const FlightScript = preload("res://scripts/flight.gd")
 const InterfaceScript = preload("res://scripts/interface.gd")
+const SoundScript = preload("res://scripts/sound.gd")
 
 enum Mode { TITLE, FLIGHT, END }
 
@@ -14,6 +15,7 @@ var mode := Mode.TITLE
 var world
 var craft
 var interface_layer
+var sound_system
 var elapsed := 0.0
 var time_remaining := INITIAL_TIME
 var gate_index := 0
@@ -31,6 +33,8 @@ func _ready() -> void:
     craft.name = "TheSkiff"
     add_child(craft)
     craft.reset_flight()
+    sound_system = SoundScript.new()
+    add_child(sound_system)
     interface_layer = InterfaceScript.new()
     add_child(interface_layer)
     interface_layer.start_requested.connect(_start)
@@ -56,6 +60,7 @@ func _start() -> void:
     message = "ALIGN WITH THE GOLDEN HALO"
     craft.reset_flight()
     craft.set_active(true)
+    sound_system.play_launch()
     world.set_active_gate(0)
     interface_layer.show_play()
     mode = Mode.FLIGHT
@@ -63,6 +68,7 @@ func _start() -> void:
 
 func _process(delta: float) -> void:
     world.update_world(delta)
+    sound_system.set_boost(craft.current_boost, delta)
     if mode != Mode.FLIGHT:
         return
     elapsed += delta
@@ -88,10 +94,12 @@ func _check_gate() -> void:
     var success: bool = aim.length() <= (5.0 * gate.scale.x)
     if success:
         var precision := maxf(0.0, 5.0 - aim.length())
+        sound_system.play_gate()
         score += 1000 + int(precision * 150.0) + int(craft.forward_speed * 4.0)
         message = "SIGNAL RESTORED  +%d" % (1000 + int(precision * 150.0))
     else:
         hull -= 1
+        sound_system.play_damage()
         message = "MISSED THE HALO  •  HULL DAMAGED"
     message_age = 0.0
     gate_index += 1
@@ -127,5 +135,8 @@ func _finish(victory: bool) -> void:
     mode = Mode.END
     craft.set_active(false)
     if victory:
+        sound_system.play_finish()
         score += int(time_remaining * 25.0) + hull * 500
+    else:
+        sound_system.play_damage()
     interface_layer.show_result(victory, score, gate_index)
