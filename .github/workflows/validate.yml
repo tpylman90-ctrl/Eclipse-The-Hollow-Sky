@@ -1,0 +1,63 @@
+name: Validate and build Eclipse prototype
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  godot-smoke:
+    runs-on: ubuntu-24.04
+    container:
+      image: barichello/godot-ci:4.5.1
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Engine information
+        run: godot --version
+      - name: Import and script validation
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --editor --import --quit 2>&1 | tee /tmp/eclipse-import.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|Failed to load resource' /tmp/eclipse-import.log; then
+            echo "Game script import failed"
+            exit 1
+          fi
+      - name: Boot main scene for ninety frames
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --quit-after 90 2>&1 | tee /tmp/eclipse-smoke.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Failed to load script|Invalid call|Invalid access' /tmp/eclipse-smoke.log; then
+            echo "Runtime smoke test failed"
+            exit 1
+          fi
+
+  android-debug:
+    needs: godot-smoke
+    runs-on: ubuntu-24.04
+    container:
+      image: barichello/godot-ci:4.5.1
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Import resources
+        run: godot --headless --path . --editor --import --quit
+      - name: Export unsigned-production-free debug APK
+        shell: bash
+        run: |
+          mkdir -p build/android
+          godot --headless --path . --export-debug "Android" build/android/Eclipse-The-Hollow-Sky-debug.apk
+          test -s build/android/Eclipse-The-Hollow-Sky-debug.apk
+      - name: Save Android test build
+        uses: actions/upload-artifact@v4
+        with:
+          name: eclipse-hollow-sky-android-debug
+          path: build/android/Eclipse-The-Hollow-Sky-debug.apk
+          if-no-files-found: error
+          retention-days: 14
