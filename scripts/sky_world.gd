@@ -176,7 +176,7 @@ func _make_temple(parent: Node3D, radius: float, rng: RandomNumberGenerator) -> 
     _mesh(temple, floor_box, Vector3(0.0, 1.0, 0.0), stone_material)
     for side in [-1.0, 1.0]:
         for i in range(3):
-            var x := side * radius * 0.37
+            var x: float = side * radius * 0.37
             var z := (float(i) - 1.0) * radius * 0.22
             var column := CylinderMesh.new()
             column.top_radius = 0.74
@@ -265,7 +265,7 @@ func _make_gate(center: Vector3, index: int) -> void:
 
 func _make_arch_fragments(center: Vector3, rng: RandomNumberGenerator) -> void:
     for side in [-1.0, 1.0]:
-        var base_x := center.x + side * rng.randf_range(15.0, 20.0)
+        var base_x: float = center.x + side * rng.randf_range(15.0, 20.0)
         var base_y := center.y - rng.randf_range(12.0, 17.0)
         var pedestal := CylinderMesh.new()
         pedestal.top_radius = 2.0
