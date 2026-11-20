@@ -46,9 +46,17 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+      - name: Restore container export templates and Android settings
+        shell: bash
+        run: |
+          mkdir -p "$HOME/.local/share/godot/export_templates" "$HOME/.config/godot"
+          cp -a /root/.local/share/godot/export_templates/. "$HOME/.local/share/godot/export_templates/"
+          cp -a /root/.config/godot/. "$HOME/.config/godot/"
+          test -f "$HOME/.local/share/godot/export_templates/4.5.1.stable/android_debug.apk"
+          test -f "$HOME/.config/godot/editor_settings-4.5.tres"
       - name: Import resources
         run: godot --headless --path . --editor --import --quit
-      - name: Export unsigned-production-free debug APK
+      - name: Export Android debug APK
         shell: bash
         run: |
           mkdir -p build/android
