@@ -5,6 +5,7 @@ const WorldScript = preload("res://scripts/sky_world.gd")
 const FlightScript = preload("res://scripts/flight.gd")
 const InterfaceScript = preload("res://scripts/interface.gd")
 const SoundScript = preload("res://scripts/sound.gd")
+const ArtScript = preload("res://scripts/art_direction.gd")
 
 enum Mode { TITLE, FLIGHT, END }
 
@@ -16,6 +17,7 @@ var world
 var craft
 var interface_layer
 var sound_system
+var art_director: Node3D
 var elapsed := 0.0
 var time_remaining := INITIAL_TIME
 var gate_index := 0
@@ -32,6 +34,9 @@ func _ready() -> void:
     craft = FlightScript.new()
     craft.name = "TheSkiff"
     add_child(craft)
+    art_director = ArtScript.new()
+    art_director.name = "CinematicArtDirection"
+    add_child(art_director)
     craft.reset_flight()
     sound_system = SoundScript.new()
     add_child(sound_system)
