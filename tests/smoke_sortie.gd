@@ -34,6 +34,42 @@ func _test() -> void:
             push_error("Aetherfall is not using combined ribbons")
             quit(1)
             return
+    # The animated 7-ring course must use instancing after stage bake.
+    for gate in game.world.gates:
+        var ornaments: Node3D = gate.get_node("Ornaments")
+        if ornaments.get_child_count() != 2:
+            push_error("Gate ornaments still contain unbatched draw nodes")
+            quit(1)
+            return
+        for decoration in ornaments.get_children():
+            if not decoration is MultiMeshInstance3D:
+                push_error("Expected instanced gate ornaments")
+                quit(1)
+                return
+            var mm := (decoration as MultiMeshInstance3D).multimesh
+            if mm == null or mm.instance_count != 12:
+                push_error("Expected 12 ornaments in each gate instanced group")
+                quit(1)
+                return
+    # Verify 60fps pacing is selectable but never imposed on Ultra by default,
+    # and that the no-shadow diagnostic cleanly restores the sun.
+    game._toggle_benchmark() # VSYNC -> UNLOCKED
+    game._toggle_benchmark() # UNLOCKED -> CAP 60
+    if Engine.max_fps != 60:
+        push_error("Optional 60fps benchmark cap failed")
+        quit(1)
+        return
+    game._toggle_benchmark() # CAP 60 -> NO SHADOW
+    var sun := game.world.find_child("PrimarySun", true, false) as DirectionalLight3D
+    if sun == null or sun.shadow_enabled:
+        push_error("Shadow-off diagnostic failed")
+        quit(1)
+        return
+    game._toggle_benchmark() # NO SHADOW -> VSYNC
+    if Engine.max_fps != 0 or not sun.shadow_enabled:
+        push_error("Shadow and frame limit restoration failed")
+        quit(1)
+        return
     if game.combat.count_alive() < 5:
         push_error("Expected hunter drones on sortie launch")
         quit(1)
