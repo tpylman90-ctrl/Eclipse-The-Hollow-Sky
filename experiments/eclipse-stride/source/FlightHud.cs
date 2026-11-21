@@ -56,7 +56,10 @@ namespace EclipseHollowSky.Android
             if (mode != "FLIGHT")
             {
                 if (mode != "MENU" && mode != "RESULT") return;
-                if (y > Height * .69f && x > Width * .60f)
+                if (y > Height * .69f && y < Height * .86f &&
+                    x > Width * .08f && x < Width * .54f)
+                    EclipseBridge.CycleQuality();
+                else if (y > Height * .69f && x > Width * .60f)
                     EclipseBridge.Launch();
                 else if (y > Height * .50f && y < Height * .73f)
                 {
@@ -165,6 +168,8 @@ namespace EclipseHollowSky.Android
             Layout();
             EclipseBridge.Hud(out string newMode, out string status, out float hp,
                 out float reactor,out float clock,out float fps,
+                out float drawFps, out float cpuMs, out int drawCalls, out int triangles,
+                out float heapMb, out int graphicsQuality,
                 out int points,out int salvage,out int signal,out int sector,out int[] levels,
                 out float loadProgress);
             mode=newMode;upgrades=levels;
@@ -201,13 +206,18 @@ namespace EclipseHollowSky.Android
             }
             else if(mode=="FLIGHT")
             {
-                FillRect(c,12*density,16*density,Math.Min(Width*.80f,530*density),105*density,Color.Argb(185,8,18,39));
+                FillRect(c,12*density,16*density,Math.Min(Width*.81f,660*density),133*density,Color.Argb(185,8,18,39));
                 Text(c,"ECLIPSE  /  SECTOR "+sector,22*density,45*density,17,white);
                 Text(c,"SIGNAL "+(signal+1).ToString("00")+"/07   HULL "+hp.ToString("0")+
                     "   ENERGY "+reactor.ToString("0"),22*density,69*density,13,cyan);
                 Text(c,"SCORE "+points+"    TIME "+clock.ToString("0")+
-                    "    ~"+Math.Min(999,fps).ToString("0")+" UPDATE/s",
+                    "    RENDER "+drawFps.ToString("0")+" FPS   UPDATE "+fps.ToString("0")+"/s",
                     22*density,89*density,11,faint);
+                Text(c,"UPD "+cpuMs.ToString("0.0")+"ms   DRAWS "+drawCalls+
+                    "   TRIS "+triangles+"   MANAGED "+heapMb.ToString("0")+" MB",
+                    22*density,110*density,11,cyan);
+                Text(c,new[]{"PERF","BAL","HIGH"}[Math.Clamp(graphicsQuality,0,2)],
+                    22*density,130*density,10,faint);
                 if(status!="FOLLOW THE SIGNALS")
                     Text(c,status,Width*.50f,Height*.16f,16,orange,true);
 
@@ -243,6 +253,11 @@ namespace EclipseHollowSky.Android
                     Text(c,levels[i]>=3?"MAX":("BUY "+(100*(levels[i]+1)*(levels[i]+1))),
                         left+10*density,top+38*density,10,white);
                 }
+                FillRect(c,Width*.08f,Height*.70f,Width*.53f,Height*.84f,
+                    Color.Argb(233,17,63,81));
+                Text(c,"GRAPHICS: "+new[]{"PERFORMANCE","BALANCED","QUALITY"}[
+                    Math.Clamp(graphicsQuality,0,2)]+"  (TAP TO CHANGE)",
+                    Width*.105f,Height*.79f,16,cyan);
                 FillRect(c,Width*.60f,Height*.76f,Width*.89f,Height*.93f,
                     Color.Argb(246,41,115,139));
                 Text(c,mode=="RESULT"?"RELAUNCH":"LAUNCH SORTIE",
