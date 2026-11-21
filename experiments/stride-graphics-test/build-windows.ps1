@@ -46,8 +46,18 @@ $androidProject = Join-Path $androidDirectory "$name.Android.csproj"
 $androidProjectContent = [System.IO.File]::ReadAllText($androidProject)
 $androidProjectContent = $androidProjectContent.Replace(
   "<ApplicationId>StrideGraphicsTest</ApplicationId>",
-  "<ApplicationId>com.neonfoundry.stride.graphicsdiagnostic</ApplicationId>")
+  "<ApplicationId>com.neonfoundry.stride.graphicsdiagnostic.v2</ApplicationId>")
+# Critical for sideloading a .NET Android Debug APK: fast deployment defaults
+# to ON and places managed assemblies on the development machine instead
+# of inside the APK. GitHub-created APKs must be self-contained.
+$marker = "<AndroidApplicationIcon>@mipmap/appicon</AndroidApplicationIcon>"
+if (-not $androidProjectContent.Contains($marker)) {
+  throw "Cannot locate generated Android project properties"
+}
+$androidProjectContent = $androidProjectContent.Replace(
+  $marker, "$marker`n    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>`n    <AndroidEnableFastDeployment>false</AndroidEnableFastDeployment>")
 [System.IO.File]::WriteAllText($androidProject, $androidProjectContent)
+Write-Host "Fast Deployment disabled; managed assemblies will be embedded in APK."
 
 # Lower the initial internal framebuffer resolution; this is a diagnostic
 # build for a Mali mobile GPU, not an image-quality benchmark.
@@ -66,7 +76,7 @@ if ($projects.Count -ne 1) {
   throw "Expected one Android project; found $($projects.Count)"
 }
 Write-Host "Stage 1: Compile Android assembly without Stride asset processing"
-dotnet build $projects[0].FullName -c Debug -p:StrideCompilerSkipBuild=true -p:AndroidPackageFormat=apk --nologo
+dotnet build $projects[0].FullName -c Debug -p:StrideCompilerSkipBuild=true -p:AndroidPackageFormat=apk -p:EmbedAssembliesIntoApk=true --nologo
 if ($LASTEXITCODE -ne 0) { throw "Stage 1 Android assembly compilation failed" }
 
 $targetAssembly = Join-Path $project "Bin/Android/Debug/$name.Android.dll"
@@ -76,12 +86,38 @@ if (Test-Path $targetAssembly) {
 }
 
 Write-Host "Stage 2: Compile full Stride assets and Android APK"
-dotnet build $projects[0].FullName -c Debug -p:AndroidPackageFormat=apk -p:StrideBuildEngineLogVerbose=true --nologo
+dotnet build $projects[0].FullName -c Debug -p:AndroidPackageFormat=apk -p:EmbedAssembliesIntoApk=true -p:StrideBuildEngineLogVerbose=true --nologo
 if ($LASTEXITCODE -ne 0) { throw "Stage 2 Stride Android asset build failed; check above logs" }
 
 $apks = @(Get-ChildItem -Path $project -Recurse -Filter "*.apk" -File)
 if ($apks.Count -eq 0) { throw "Build completed, but no APK was produced" }
+# Verify that this really can be installed by hand. Older builds were
+# successful in CI but contained NO managed assembly store, causing a crash
+# before the native diagnostic screen rendered.
+Add-Type -AssemblyName System.IO.Compression
+$verified = @()
 foreach ($apk in $apks) {
-  Copy-Item -Path $apk.FullName -Destination $artifacts -Force
-  Write-Host "APK: $($apk.Name)"
+  $archive = [System.IO.Compression.ZipFile]::OpenRead($apk.FullName)
+  try {
+    $managedEntries = @($archive.Entries | Where-Object {
+      $_.FullName -match '(^assemblies/.*(\.blob|\.dll)$|^lib/arm64-v8a/libassembly-store\.so$)'
+    })
+    Write-Host ("Managed assembly store entries in {0}: {1}" -f $apk.Name, $managedEntries.Count)
+    foreach ($entry in $managedEntries) {
+      Write-Host ("  {0} ({1} bytes)" -f $entry.FullName, $entry.Length)
+    }
+    if ($managedEntries.Count -eq 0) {
+      throw "APK lacks a managed .NET assembly store; refusing to distribute incomplete APK"
+    }
+    $assetEntries = @($archive.Entries | Where-Object { $_.FullName -like 'assets/data/db/bundles/*' })
+    if ($assetEntries.Count -eq 0) { throw "APK has no compiled Stride asset bundles" }
+    $verified += $apk.FullName
+  }
+  finally {
+    $archive.Dispose()
+  }
+}
+foreach ($apk in $verified) {
+  Copy-Item -Path $apk -Destination $artifacts -Force
+  Write-Host "Verified self-contained APK: $apk"
 }
