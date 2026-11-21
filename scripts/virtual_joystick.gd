@@ -19,12 +19,12 @@ func _ready() -> void:
 func _gui_input(event: InputEvent) -> void:
     if event is InputEventScreenTouch and event.pressed and touch_id == -1:
         touch_id = event.index
-        _set_position(event.position)
+        _move_stick(event.position)
         accept_event()
     elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
         if event.pressed and not mouse_held:
             mouse_held = true
-            _set_position(event.position)
+            _move_stick(event.position)
         elif not event.pressed and mouse_held:
             reset_stick()
         accept_event()
@@ -32,16 +32,21 @@ func _gui_input(event: InputEvent) -> void:
 
 func _input(event: InputEvent) -> void:
     if event is InputEventScreenDrag and event.index == touch_id:
-        _set_position(to_local(event.position))
+        _move_stick(_from_screen(event.position))
     elif event is InputEventScreenTouch and not event.pressed and event.index == touch_id:
         reset_stick()
     elif event is InputEventMouseMotion and mouse_held:
-        _set_position(to_local(event.position))
+        _move_stick(_from_screen(event.position))
     elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed and mouse_held:
         reset_stick()
 
 
-func _set_position(local_pos: Vector2) -> void:
+func _from_screen(screen_pos: Vector2) -> Vector2:
+    # Control does not expose Node2D.to_local(); invert its canvas transform.
+    return get_global_transform_with_canvas().affine_inverse() * screen_pos
+
+
+func _move_stick(local_pos: Vector2) -> void:
     var center := size * 0.5
     var relative := (local_pos - center) / RADIUS
     stick = relative.limit_length(1.0)
