@@ -17,6 +17,23 @@ func _test() -> void:
     await process_frame
     game._start()
     await process_frame
+    if game.render_budget.total_static < 150:
+        push_error("Spatial budget failed to discover compiled environment meshes")
+        quit(1)
+        return
+    if game.render_budget.hidden_static <= 0:
+        push_error("Spatial budget failed to cull distant static geometry")
+        quit(1)
+        return
+    if game.sky_fx.cascades.size() != 14:
+        push_error("Missing batched aetherfall groups")
+        quit(1)
+        return
+    for fall in game.sky_fx.cascades:
+        if fall.get_node_or_null("BatchedAetherfallRibbons") == null:
+            push_error("Aetherfall is not using combined ribbons")
+            quit(1)
+            return
     if game.combat.count_alive() < 5:
         push_error("Expected hunter drones on sortie launch")
         quit(1)
@@ -59,5 +76,5 @@ func _test() -> void:
         push_error("Hangar return failed")
         quit(1)
         return
-    print("ECLIPSE GAMEPLAY SMOKE: PASS -- enemies, salvage, sector, debrief, hangar")
+    print("ECLIPSE GAMEPLAY SMOKE: PASS -- spatial culling, ribbon batching, enemies, salvage, sector, debrief, hangar")
     quit(0)
