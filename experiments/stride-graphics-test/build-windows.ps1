@@ -24,6 +24,39 @@ Get-ChildItem -Path $project -Recurse -File |
     }
   }
 
+# Give the native Android diagnostic screen launcher ownership. Keep the
+# Stride Activity available behind an explicit START 3D button so a Vulkan
+# crash cannot prevent the user from reading the preflight screen.
+$androidDirectory = Join-Path $project "$name.Android"
+$originalActivity = Join-Path $androidDirectory "$($name)Activity.cs"
+$activityText = [System.IO.File]::ReadAllText($originalActivity)
+if (-not $activityText.Contains("MainLauncher = true")) {
+  throw "Upstream Stride Activity launcher structure changed"
+}
+$activityText = $activityText.Replace("MainLauncher = true", "MainLauncher = false")
+$activityText = $activityText.Replace("Game.Dispose();", "Game?.Dispose();")
+[System.IO.File]::WriteAllText($originalActivity, $activityText)
+
+$diagnosticsSource = Join-Path $root "payload/GraphicsPreflightActivity.cs"
+Copy-Item -Path $diagnosticsSource -Destination (Join-Path $androidDirectory "GraphicsPreflightActivity.cs") -Force
+
+# Use a unique identifier so the diagnostic APK can coexist with the original
+# signed Stride test even when transient GitHub runner signing keys differ.
+$androidProject = Join-Path $androidDirectory "$name.Android.csproj"
+$androidProjectContent = [System.IO.File]::ReadAllText($androidProject)
+$androidProjectContent = $androidProjectContent.Replace(
+  "<ApplicationId>StrideGraphicsTest</ApplicationId>",
+  "<ApplicationId>com.neonfoundry.stride.graphicsdiagnostic</ApplicationId>")
+[System.IO.File]::WriteAllText($androidProject, $androidProjectContent)
+
+# Lower the initial internal framebuffer resolution; this is a diagnostic
+# build for a Mali mobile GPU, not an image-quality benchmark.
+$settingsFile = Join-Path $project "Assets/GameSettings.sdgamesettings"
+$settingsText = [System.IO.File]::ReadAllText($settingsFile)
+$settingsText = $settingsText.Replace("DefaultBackBufferWidth: 1280", "DefaultBackBufferWidth: 960")
+$settingsText = $settingsText.Replace("DefaultBackBufferHeight: 720", "DefaultBackBufferHeight: 540")
+[System.IO.File]::WriteAllText($settingsFile, $settingsText)
+
 # Save the generated starter before building for diagnosis if compilation fails.
 Compress-Archive -Path $project -DestinationPath (Join-Path $artifacts "stride-source.zip") -Force
 
