@@ -122,6 +122,7 @@ func _make_atmosphere() -> void:
     world_env.environment = environment
     add_child(world_env)
     var sun := DirectionalLight3D.new()
+    sun.name = "PrimarySun"
     sun.rotation_degrees = Vector3(-38.0, -31.0, 0.0)
     sun.light_color = Color("#ffcb93")
     sun.light_energy = 1.63
@@ -453,6 +454,14 @@ func set_active_gate(index: int) -> void:
         lamp.visible = i == index
         var marker: Node3D = gates[i].get_node("Marker")
         marker.visible = i >= index
+
+
+func set_realtime_sun_shadows(enabled: bool) -> void:
+    # Diagnostic switch used to measure the actual sun-shadow cost on phone.
+    # All four benchmarking modes preserve the regular sun illumination.
+    var sun := find_child("PrimarySun", true, false) as DirectionalLight3D
+    if sun != null:
+        sun.shadow_enabled = enabled
 
 
 func update_world(delta: float) -> void:
