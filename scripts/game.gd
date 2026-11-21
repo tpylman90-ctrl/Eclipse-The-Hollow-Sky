@@ -10,8 +10,9 @@ const ArtScript = preload("res://scripts/art_direction.gd")
 const SkyFXScript = preload("res://scripts/sky_fx.gd")
 const CombatScript = preload("res://scripts/combat.gd")
 const RenderBudgetScript = preload("res://scripts/render_budget.gd")
+const MobileBudgetScript = preload("res://scripts/mobile_frame_budget.gd")
 const PROGRESS_PATH := "user://eclipse_hangar.cfg"
-const GRAPHICS_NAMES := ["ULTRA", "HIGH", "SAFE"]
+const GRAPHICS_NAMES := ["GRAPHICS", "AUTO 60", "AUTO 90", "FPS MAX"]
 
 enum Mode { TITLE, FLIGHT, END }
 
@@ -24,6 +25,7 @@ var art_director: Node3D
 var sky_fx
 var combat
 var render_budget
+var mobile_budget
 var benchmark_mode := 0
 const BENCH_NAMES := ["VSYNC", "UNLOCKED", "CAP 60", "NO SHADOW"]
 
@@ -49,7 +51,7 @@ var message_age := 0.0
 var perf_elapsed := 0.0
 var slow_samples := 0
 var recovery_samples := 0
-var graphics_index := 0
+var graphics_index := 1
 var telemetry_elapsed := 0.0
 var hud_refresh_elapsed := 0.0
 
@@ -74,6 +76,10 @@ func _ready() -> void:
     render_budget.name = "SpatialRenderBudget"
     add_child(render_budget)
     render_budget.configure(world, art_director, sky_fx, craft.chase_camera)
+    mobile_budget = MobileBudgetScript.new()
+    mobile_budget.name = "AndroidFrameSupervisor"
+    add_child(mobile_budget)
+    mobile_budget.configure(get_viewport(), world, sky_fx, render_budget)
 
     combat = CombatScript.new()
     combat.name = "AetherHostiles"
@@ -100,6 +106,7 @@ func _ready() -> void:
     craft.set_active(false)
     world.set_active_gate(0)
     _apply_graphics()
+    mobile_budget.set_active(false)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -115,6 +122,7 @@ func _load_progress() -> void:
     credits = maxi(0, int(config.get_value("hangar", "credits", 0)))
     record_score = maxi(0, int(config.get_value("hangar", "record_score", 0)))
     highest_sector = maxi(1, int(config.get_value("hangar", "highest_sector", 1)))
+    graphics_index = clampi(int(config.get_value("settings", "quality_profile", 1)), 0, GRAPHICS_NAMES.size() - 1)
     for name in ["hull", "weapon", "reactor"]:
         upgrades[name] = clampi(int(config.get_value("upgrades", name, 0)), 0, 3)
 
@@ -124,6 +132,7 @@ func _save_progress() -> void:
     config.set_value("hangar", "credits", credits)
     config.set_value("hangar", "record_score", record_score)
     config.set_value("hangar", "highest_sector", highest_sector)
+    config.set_value("settings", "quality_profile", graphics_index)
     for name in ["hull", "weapon", "reactor"]:
         config.set_value("upgrades", name, int(upgrades[name]))
     var error: Error = config.save(PROGRESS_PATH)
@@ -168,6 +177,7 @@ func _start() -> void:
     craft.max_energy = 100.0 + float(upgrades["reactor"]) * 30.0
     craft.reset_flight()
     craft.set_active(true)
+    mobile_budget.set_active(true)
     combat.reset_sector(sector, int(upgrades["weapon"]))
     _apply_graphics()
     sound_system.play_launch()
@@ -181,6 +191,7 @@ func _process(delta: float) -> void:
     world.update_world(delta)
     sky_fx.update_fx(delta, mode == Mode.FLIGHT)
     render_budget.tick(delta)
+    mobile_budget.tick(delta, benchmark_mode != 0)
     sound_system.set_boost(craft.current_boost, delta)
     if mode != Mode.FLIGHT:
         return
@@ -196,7 +207,7 @@ func _process(delta: float) -> void:
     if telemetry_elapsed > 0.55:
         telemetry_elapsed = 0.0
         interface_layer.update_graphics_hud(
-            GRAPHICS_NAMES[graphics_index],
+            "%s %d%%" % [mobile_budget.preset_name(), mobile_budget.percent_scale()],
             Engine.get_frames_per_second(),
             int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
             Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
@@ -205,23 +216,6 @@ func _process(delta: float) -> void:
             render_budget.total_static,
             DisplayServer.screen_get_refresh_rate(),
             RenderingServer.get_current_rendering_method())
-    if graphics_index == 1 and perf_elapsed >= 2.5 and elapsed > 6.0:
-        perf_elapsed = 0.0
-        var fps: int = Engine.get_frames_per_second()
-        if fps > 0 and fps < 29:
-            slow_samples += 1
-            recovery_samples = 0
-        elif fps >= 46:
-            recovery_samples += 1
-            slow_samples = 0
-        else:
-            slow_samples = 0
-            recovery_samples = 0
-        if slow_samples >= 2:
-            sky_fx.set_low_effects(true)
-        elif recovery_samples >= 4:
-            sky_fx.set_low_effects(false)
-
     combat.update_combat(delta)
     if mode != Mode.FLIGHT:
         return
@@ -389,6 +383,7 @@ func _finish(victory: bool) -> void:
         return
     mode = Mode.END
     craft.set_active(false)
+    mobile_budget.set_active(false)
     _bank_progress()
     if victory:
         sound_system.play_finish()
@@ -402,6 +397,7 @@ func _finish(victory: bool) -> void:
 func _return_hangar() -> void:
     mode = Mode.TITLE
     craft.set_active(false)
+    mobile_budget.set_active(false)
     interface_layer.update_hangar(credits, record_score, upgrades)
     interface_layer.show_title()
 
@@ -409,32 +405,17 @@ func _return_hangar() -> void:
 func _cycle_graphics() -> void:
     graphics_index = (graphics_index + 1) % GRAPHICS_NAMES.size()
     _apply_graphics()
+    _save_progress()
     telemetry_elapsed = 1.0
 
 
 func _apply_graphics() -> void:
-    if sky_fx == null:
+    if mobile_budget == null:
         return
-    var view := get_viewport()
-    var renderer := RenderingServer.get_current_rendering_method()
-    # Mobile Vulkan supports FXAA but not TAA/SSR. Changing MSAA levels mid-run
-    # can trigger pipeline recompilation and tile-memory pressure.
-    view.msaa_3d = Viewport.MSAA_DISABLED
-    if renderer != "gl_compatibility":
-        view.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
-    render_budget.set_quality(graphics_index)
-    if graphics_index == 0:
-        if renderer != "gl_compatibility":
-            view.scaling_3d_scale = 1.0
-        sky_fx.set_low_effects(false)
-    elif graphics_index == 1:
-        if renderer != "gl_compatibility":
-            view.scaling_3d_scale = 0.85
-        sky_fx.set_low_effects(false)
-    else:
-        if renderer != "gl_compatibility":
-            view.scaling_3d_scale = 0.70
-        sky_fx.set_low_effects(true)
+    mobile_budget.set_preset(graphics_index)
+    # Benchmark diagnostic temporarily overrides the preset's sun policy.
+    if benchmark_mode == 3:
+        world.set_realtime_sun_shadows(false)
 
 
 func _toggle_benchmark() -> void:
