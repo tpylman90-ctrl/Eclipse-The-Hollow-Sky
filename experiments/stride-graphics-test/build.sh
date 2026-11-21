@@ -21,15 +21,15 @@ dotnet new stride-fps -n "$NAME" -o "$OUT/$NAME" --platforms android
 # compiler references to the 4.4.3 maintenance release before restoring.
 while IFS= read -r -d '' file; do
   if grep -q '4.4.0' "$file"; then
-    sed -i 's/4\\.4\\.0/4.4.3/g' "$file"
+    sed -i 's/4\.4\.0/4.4.3/g' "$file"
   fi
-done < <(find "$OUT/$NAME" -type f \\( -name '*.csproj' -o -name '*.props' -o -name '*.targets' \\) -print0)
+done < <(find "$OUT/$NAME" -type f \( -name '*.csproj' -o -name '*.props' -o -name '*.targets' \) -print0)
 
 mkdir -p "$OUT/artifacts"
 # Save the generated project even if Android asset compilation fails.
 (
   cd "$OUT"
-  zip -qr "artifacts/stride-source.zip" "$NAME" \\
+  zip -qr "artifacts/stride-source.zip" "$NAME" \
     -x '*/bin/*' '*/obj/*' '*/.vs/*' '*/.git/*'
 )
 
@@ -54,11 +54,4 @@ if ! find "$OUT/$NAME" -type f -iname '*.apk' | grep -q .; then
   exit 4
 fi
 
-mkdir -p "$OUT/artifacts"
 find "$OUT/$NAME" -type f -iname '*.apk' -exec cp -v {} "$OUT/artifacts/" \;
-# Preserve generated scene/projects, but exclude bulky build caches.
-(
-  cd "$OUT"
-  zip -qr "artifacts/stride-source.zip" "$NAME" \
-    -x '*/bin/*' '*/obj/*' '*/.vs/*' '*/.git/*'
-)
