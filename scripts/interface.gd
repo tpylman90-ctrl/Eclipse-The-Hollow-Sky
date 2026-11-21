@@ -3,6 +3,7 @@ extends CanvasLayer
 
 signal start_requested
 signal restart_requested
+signal graphics_preset_requested
 
 var root: Control
 var menu: Control
@@ -14,6 +15,7 @@ var shield_label: Label
 var clock_label: Label
 var speed_label: Label
 var energy_label: Label
+var perf_button: Button
 var result_title: Label
 var result_detail: Label
 var message_label: Label
@@ -174,6 +176,21 @@ func _build_hud() -> void:
     message_label.offset_top = 0
     message_label.offset_bottom = 42
     hud.add_child(message_label)
+    # In-game tuning instrument. Tap it to compare Ultra / High / Safe.
+    # Center-bottom stays clear of both left D-pad and right throttle group.
+    perf_button = _button("ULTRA  •  -- FPS")
+    perf_button.anchor_left = 0.5
+    perf_button.anchor_right = 0.5
+    perf_button.anchor_top = 1.0
+    perf_button.anchor_bottom = 1.0
+    perf_button.offset_left = -100.0
+    perf_button.offset_right = 100.0
+    perf_button.offset_top = -57.0
+    perf_button.offset_bottom = -12.0
+    perf_button.custom_minimum_size = Vector2.ZERO
+    perf_button.add_theme_font_size_override("font_size", 14)
+    perf_button.pressed.connect(func(): graphics_preset_requested.emit())
+    hud.add_child(perf_button)
     _build_touch()
 
 
@@ -264,3 +281,9 @@ func update_status(signals: int, total: int, shield: int, time_left: float, spee
     speed_label.text = "%03d M/S" % int(speed)
     energy_label.text = "BOOST  " + "█".repeat(clampi(int(energy / 10.0), 0, 10)) + "░".repeat(clampi(10 - int(energy / 10.0), 0, 10))
     message_label.text = hint
+
+
+func update_graphics_hud(preset: String, fps: int, draws: int) -> void:
+    if perf_button == null:
+        return
+    perf_button.text = "%s  %d FPS  %d DC" % [preset, fps, draws]
