@@ -172,15 +172,17 @@ func _build_touch() -> void:
     _fill(touch_layer)
     hud.add_child(touch_layer)
     touch_layer.visible = OS.has_feature("mobile") or DisplayServer.is_touchscreen_available()
-    _touch_button("◀", "steer_left", 0.0, 18.0, -117.0, 86.0)
-    _touch_button("▶", "steer_right", 0.0, 122.0, -117.0, 86.0)
-    _touch_button("▲", "steer_up", 0.0, 72.0, -219.0, 86.0)
-    _touch_button("▼", "steer_down", 0.0, 72.0, -117.0, 45.0)
-    _touch_button("BOOST", "boost", 1.0, -162.0, -125.0, 135.0)
-    _touch_button("BRAKE", "brake", 1.0, -296.0, -104.0, 112.0)
+    # Four fully separated 88x88 touch targets in a classic D-pad.
+    # Horizontal / vertical gaps are at least 8 screen pixels.
+    _touch_button("▲", "steer_up", 0.0, 114.0, -219.0, 88.0, 88.0)
+    _touch_button("◀", "steer_left", 0.0, 18.0, -123.0, 88.0, 88.0)
+    _touch_button("▼", "steer_down", 0.0, 114.0, -123.0, 88.0, 88.0)
+    _touch_button("▶", "steer_right", 0.0, 210.0, -123.0, 88.0, 88.0)
+    _touch_button("BRAKE", "brake", 1.0, -296.0, -104.0, 112.0, 73.0)
+    _touch_button("BOOST", "boost", 1.0, -162.0, -125.0, 135.0, 73.0)
 
 
-func _touch_button(caption: String, action: String, horizontal_anchor: float, offset_x: float, offset_y: float, size_x: float) -> void:
+func _touch_button(caption: String, action: String, horizontal_anchor: float, offset_x: float, offset_y: float, size_x: float, size_y: float) -> void:
     var btn := _button(caption, action == "boost")
     btn.add_theme_font_size_override("font_size", 18)
     btn.anchor_left = horizontal_anchor
@@ -190,7 +192,7 @@ func _touch_button(caption: String, action: String, horizontal_anchor: float, of
     btn.offset_left = offset_x
     btn.offset_right = offset_x + size_x
     btn.offset_top = offset_y
-    btn.offset_bottom = offset_y + (73.0 if action != "steer_down" else 40.0)
+    btn.offset_bottom = offset_y + size_y
     btn.custom_minimum_size = Vector2.ZERO
     touch_layer.add_child(btn)
     btn.button_down.connect(func(): Input.action_press(action))
