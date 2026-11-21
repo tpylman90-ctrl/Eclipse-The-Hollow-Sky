@@ -221,12 +221,13 @@ func _build_hud() -> void:
     perf_button.anchor_right = 0.5
     perf_button.anchor_top = 1.0
     perf_button.anchor_bottom = 1.0
-    perf_button.offset_left = -100.0
-    perf_button.offset_right = 100.0
+    # 4 render profiles display resolution, FPS and draw calls together.
+    perf_button.offset_left = -144.0
+    perf_button.offset_right = 144.0
     perf_button.offset_top = -57.0
     perf_button.offset_bottom = -12.0
     perf_button.custom_minimum_size = Vector2.ZERO
-    perf_button.add_theme_font_size_override("font_size", 14)
+    perf_button.add_theme_font_size_override("font_size", 12)
     perf_button.pressed.connect(func(): graphics_preset_requested.emit())
     hud.add_child(perf_button)
     bench_button = _button("BENCH: VSYNC")
