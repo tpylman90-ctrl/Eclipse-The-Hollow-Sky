@@ -1,13 +1,16 @@
 extends Node3D
+
+const MeshFactory = preload("res://scripts/mesh_factory.gd")
+const PBR_WEATHER_SHADER = preload("res://shaders/weathered_architecture.gdshader")
 ## Art-pass 02: a cinematic architectural layer, entirely generated from reusable meshes.
 ## Designed for the Godot 4 Compatibility renderer and a midrange/entry-level Android GPU.
 
 var world
-var basalt: StandardMaterial3D
-var cut_stone: StandardMaterial3D
-var polished_stone: StandardMaterial3D
-var aged_bronze: StandardMaterial3D
-var dark_bronze: StandardMaterial3D
+var basalt: Material
+var cut_stone: Material
+var polished_stone: Material
+var aged_bronze: Material
+var dark_bronze: Material
 var light_gold: StandardMaterial3D
 var energy: StandardMaterial3D
 var lunar: StandardMaterial3D
@@ -20,11 +23,11 @@ func _ready() -> void:
     structural = Node3D.new()
     structural.name = "RuinsAndMonuments"
     add_child(structural)
-    basalt = _mat(Color("#202b39"), 0.93, 0.04)
-    cut_stone = _mat(Color("#50606a"), 0.72, 0.08)
-    polished_stone = _mat(Color("#829093"), 0.42, 0.13)
-    aged_bronze = _mat(Color("#8f6e4d"), 0.38, 0.62)
-    dark_bronze = _mat(Color("#433c39"), 0.51, 0.63)
+    basalt = _pbr(Color("#293440"), Color("#111c24"), 0.04, 0.85, 0.83)
+    cut_stone = _pbr(Color("#596d76"), Color("#233743"), 0.07, 0.72, 0.72)
+    polished_stone = _pbr(Color("#899a9e"), Color("#334c55"), 0.14, 0.39, 0.42)
+    aged_bronze = _pbr(Color("#aa8260"), Color("#40312c"), 0.64, 0.53, 0.34)
+    dark_bronze = _pbr(Color("#4a4444"), Color("#201c23"), 0.59, 0.59, 0.48)
     light_gold = _glow(Color("#efb46d"), 1.9)
     energy = _glow(Color("#59d4d4"), 2.7)
     lunar = _glow(Color("#b89bac"), 0.72)
@@ -36,6 +39,19 @@ func _ready() -> void:
     _build_background_monoliths()
     _build_distant_planet()
     _build_starlight()
+
+
+func _pbr(base: Color, veins: Color, metal: float, weather: float, rough: float) -> ShaderMaterial:
+    var surface := ShaderMaterial.new()
+    surface.shader = PBR_WEATHER_SHADER
+    surface.set_shader_parameter("base_tint", base)
+    surface.set_shader_parameter("vein_tint", veins)
+    surface.set_shader_parameter("polished_edge_tint", base.lightened(0.30))
+    surface.set_shader_parameter("metalness", metal)
+    surface.set_shader_parameter("weathering", weather)
+    surface.set_shader_parameter("roughness_level", rough)
+    surface.set_shader_parameter("map_scale", 0.44)
+    return surface
 
 
 func _mat(color: Color, rough: float, metal: float) -> StandardMaterial3D:
@@ -60,15 +76,15 @@ func _mesh(parent: Node3D, shape: Mesh, pos: Vector3, material: Material) -> Mes
     n.mesh = shape
     n.position = pos
     n.material_override = material
-    n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if material in [basalt, cut_stone, polished_stone, aged_bronze, dark_bronze] else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     parent.add_child(n)
     return n
 
 
 func _box(parent: Node3D, pos: Vector3, size: Vector3, material: Material) -> MeshInstance3D:
-    var b := BoxMesh.new()
-    b.size = size
-    return _mesh(parent, b, pos, material)
+    # Even narrow accent bars keep crisp physically illuminated bevels.
+    var bevel: float = minf(0.26, minf(size.x, minf(size.y, size.z)) * 0.20)
+    return _mesh(parent, MeshFactory.bevel_box(size, bevel), pos, material)
 
 
 func _cylinder(parent: Node3D, pos: Vector3, radius: float, height: float, sides: int, material: Material) -> MeshInstance3D:
