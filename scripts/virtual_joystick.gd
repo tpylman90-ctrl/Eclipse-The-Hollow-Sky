@@ -19,12 +19,12 @@ func _ready() -> void:
 func _gui_input(event: InputEvent) -> void:
     if event is InputEventScreenTouch and event.pressed and touch_id == -1:
         touch_id = event.index
-        _set_position(to_local(event.position))
+        _set_position(event.position)
         accept_event()
     elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
         if event.pressed and not mouse_held:
             mouse_held = true
-            _set_position(to_local(event.position))
+            _set_position(event.position)
         elif not event.pressed and mouse_held:
             reset_stick()
         accept_event()
