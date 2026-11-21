@@ -382,13 +382,17 @@ func update_graphics_hud(
         return
     perf_button.text = "%s  %d FPS  %d DC" % [preset, fps, draws]
     if diagnostic_label != null:
-        diagnostic_label.text = "CPU %.1fms  PHYS %.1fms  •  %d/%d static  •  %dHz  %s" % [
-            cpu_ms, physics_ms, visible_meshes, total_meshes, int(maxf(refresh_hz, 0.0)), renderer]
+        # Separate observed FPS-derived frame duration from Godot's process
+        # monitor (not a true GPU timer and not necessarily synchronized).
+        var observed_frame_ms: float = 1000.0 / float(maxi(fps, 1))
+        diagnostic_label.text = "FRAME %.1fms  PROC %.1fms  PHYS %.1fms  •  %d/%d static  •  %dHz  %s" % [
+            observed_frame_ms, cpu_ms, physics_ms, visible_meshes,
+            total_meshes, int(maxf(refresh_hz, 0.0)), renderer]
 
 
-func update_benchmark(enabled: bool) -> void:
+func update_benchmark(mode: String) -> void:
     if bench_button != null:
-        bench_button.text = "BENCH: UNLOCKED" if enabled else "BENCH: VSYNC"
+        bench_button.text = "BENCH: " + mode
 
 
 func update_combat_hud(sector: int, alive: int, destroyed: int, combo: int, mission: String) -> void:
