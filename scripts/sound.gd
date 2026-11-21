@@ -8,6 +8,8 @@ var gate: AudioStreamPlayer
 var damage: AudioStreamPlayer
 var finale: AudioStreamPlayer
 var launch: AudioStreamPlayer
+var plasma: AudioStreamPlayer
+var impact: AudioStreamPlayer
 
 
 func _ready() -> void:
@@ -16,6 +18,8 @@ func _ready() -> void:
     damage = _player(_make_wave("damage", 0.48), -7.0)
     finale = _player(_make_wave("finale", 1.7), -5.0)
     launch = _player(_make_wave("launch", 0.85), -10.0)
+    plasma = _player(_make_wave("plasma", 0.24), -14.0)
+    impact = _player(_make_wave("impact", 0.40), -9.0)
     ambient.play()
 
 
@@ -57,6 +61,14 @@ func _make_wave(style: String, seconds: float) -> AudioStreamWAV:
                 wave += sin(TAU * 330.0 * t) * 0.22
                 wave += sin(TAU * 440.0 * t) * 0.17
                 envelope = minf(1.0, 9.0 * u) * pow(1.0 - u, 0.55)
+            "plasma":
+                wave = sin(TAU * (530.0 * t - 1600.0 * t * t)) * 0.59
+                wave += sin(TAU * (880.0 * t - 2450.0 * t * t)) * 0.24
+                envelope = pow(1.0 - u, 2.0) * minf(1.0, u * 30.0)
+            "impact":
+                wave = sin(TAU * (205.0 * t - 350.0 * t * t)) * 0.52
+                wave += sin(TAU * 52.0 * t) * 0.23
+                envelope = pow(1.0 - u, 1.7)
             "launch":
                 wave = sin(TAU * (84.0 * t + 90.0 * t * t)) * 0.62
                 wave += sin(TAU * 210.0 * t) * 0.12
@@ -95,3 +107,11 @@ func play_finish() -> void:
 
 func play_launch() -> void:
     launch.play()
+
+
+func play_plasma() -> void:
+    plasma.play()
+
+
+func play_impact() -> void:
+    impact.play()
