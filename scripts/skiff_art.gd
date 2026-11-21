@@ -1,23 +1,24 @@
 extends Node3D
 
 const MeshFactory = preload("res://scripts/mesh_factory.gd")
+const FORGED_SHADER = preload("res://shaders/forged_metal.gdshader")
 ## Art pass 02 - layered metallic hull, aviation panelization, glass canopy ribs.
 ## This is all original hard-surface geometry, built into the parent skiff at runtime.
 
-var graphite: StandardMaterial3D
-var steel: StandardMaterial3D
-var titanium: StandardMaterial3D
-var bronze: StandardMaterial3D
+var graphite: Material
+var steel: Material
+var titanium: Material
+var bronze: Material
 var glass: StandardMaterial3D
 var turquoise: StandardMaterial3D
 var ember: StandardMaterial3D
 var bolt: StandardMaterial3D
 
 func _ready() -> void:
-    graphite = _material(Color("#17212c"), 0.50, 0.55)
-    steel = _material(Color("#687e8b"), 0.23, 0.76)
-    titanium = _material(Color("#a2b2ad"), 0.34, 0.69)
-    bronze = _material(Color("#a48055"), 0.34, 0.65)
+    graphite = _forged(Color("#202a34"), 0.59, 0.43, 0.17)
+    steel = _forged(Color("#6b8792"), 0.84, 0.25, 0.18)
+    titanium = _forged(Color("#a5b7b0"), 0.80, 0.34, 0.15)
+    bronze = _forged(Color("#ac8861"), 0.77, 0.29, 0.27)
     glass = _material(Color("#133746"), 0.08, 0.45)
     turquoise = _emissive(Color("#56e4db"), 3.3)
     ember = _emissive(Color("#f0a165"), 4.0)
@@ -27,6 +28,18 @@ func _ready() -> void:
     _canopy()
     _engine_detail()
     _livery()
+
+
+func _forged(tint: Color, metallic: float, rough: float, wear: float) -> ShaderMaterial:
+    var surface := ShaderMaterial.new()
+    surface.shader = FORGED_SHADER
+    surface.set_shader_parameter("paint_color", tint)
+    surface.set_shader_parameter("exposed_metal", tint.lightened(0.31))
+    surface.set_shader_parameter("metalness", metallic)
+    surface.set_shader_parameter("roughness_base", rough)
+    surface.set_shader_parameter("wear", wear)
+    surface.set_shader_parameter("scratch_density", 1.0)
+    return surface
 
 
 func _material(c: Color, rough: float, metal: float) -> StandardMaterial3D:
@@ -51,7 +64,7 @@ func _mesh(m: Mesh, pos: Vector3, material: Material) -> MeshInstance3D:
     n.mesh = m
     n.position = pos
     n.material_override = material
-    n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if material in [graphite, steel, titanium, bronze] else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     add_child(n)
     return n
 
@@ -79,8 +92,9 @@ func _plate(verts: PackedVector3Array, material: Material) -> void:
     for v in verts:
         surface.add_vertex(v)
     surface.generate_normals()
-    var mat := material.duplicate() as StandardMaterial3D
-    mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+    var mat := material.duplicate() as Material
+    if mat is BaseMaterial3D:
+        (mat as BaseMaterial3D).cull_mode = BaseMaterial3D.CULL_DISABLED
     _mesh(surface.commit(), Vector3.ZERO, mat)
 
 
