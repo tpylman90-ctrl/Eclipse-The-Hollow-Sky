@@ -100,9 +100,13 @@ foreach ($apk in $apks) {
   $archive = [System.IO.Compression.ZipFile]::OpenRead($apk.FullName)
   try {
     $managedEntries = @($archive.Entries | Where-Object {
-      $_.FullName -match '(^assemblies/.*(\.blob|\.dll)$|^lib/arm64-v8a/libassembly-store\.so$)'
+      $_.FullName -match '(^assemblies/.*(\.blob|\.dll)$|^lib/arm64-v8a/lib(assembly-store|assemblies\.arm64-v8a\.blob)\.so$)'
     })
     Write-Host ("Managed assembly store entries in {0}: {1}" -f $apk.Name, $managedEntries.Count)
+    if ($managedEntries.Count -eq 0) {
+      $assemblyCandidates = @($archive.Entries | Where-Object { $_.FullName -match '(?i)(assembl|\.blob)' })
+      Write-Host "Candidate assembly entries: $($assemblyCandidates.FullName -join ', ')"
+    }
     foreach ($entry in $managedEntries) {
       Write-Host ("  {0} ({1} bytes)" -f $entry.FullName, $entry.Length)
     }
