@@ -9,6 +9,7 @@ const SoundScript = preload("res://scripts/sound.gd")
 const ArtScript = preload("res://scripts/art_direction.gd")
 const SkyFXScript = preload("res://scripts/sky_fx.gd")
 const CombatScript = preload("res://scripts/combat.gd")
+const RenderBudgetScript = preload("res://scripts/render_budget.gd")
 const PROGRESS_PATH := "user://eclipse_hangar.cfg"
 const GRAPHICS_NAMES := ["ULTRA", "HIGH", "SAFE"]
 
@@ -22,6 +23,8 @@ var sound_system
 var art_director: Node3D
 var sky_fx
 var combat
+var render_budget
+var benchmark_unlocked := false
 
 var elapsed := 0.0
 var time_remaining := 88.0
@@ -64,6 +67,11 @@ func _ready() -> void:
     sky_fx.name = "AmbientSkyEffects"
     add_child(sky_fx)
     craft.reset_flight()
+    # Static working-set traversal is built once, at scene load.
+    render_budget = RenderBudgetScript.new()
+    render_budget.name = "SpatialRenderBudget"
+    add_child(render_budget)
+    render_budget.configure(world, art_director, sky_fx, craft.chase_camera)
 
     combat = CombatScript.new()
     combat.name = "AetherHostiles"
@@ -82,6 +90,7 @@ func _ready() -> void:
     interface_layer.start_requested.connect(_start)
     interface_layer.restart_requested.connect(_start)
     interface_layer.graphics_preset_requested.connect(_cycle_graphics)
+    interface_layer.benchmark_requested.connect(_toggle_benchmark)
     interface_layer.upgrade_requested.connect(_buy_upgrade)
     interface_layer.hangar_requested.connect(_return_hangar)
     interface_layer.update_hangar(credits, record_score, upgrades)
@@ -161,6 +170,7 @@ func _start() -> void:
     _apply_graphics()
     sound_system.play_launch()
     world.set_active_gate(0)
+    render_budget.update_budget(true)
     message = "MISSION: HUNT WARDENS AND RECOVER SEVEN BEACONS"
     interface_layer.show_play()
 
@@ -168,6 +178,7 @@ func _start() -> void:
 func _process(delta: float) -> void:
     world.update_world(delta)
     sky_fx.update_fx(delta, mode == Mode.FLIGHT)
+    render_budget.tick(delta)
     sound_system.set_boost(craft.current_boost, delta)
     if mode != Mode.FLIGHT:
         return
@@ -181,9 +192,16 @@ func _process(delta: float) -> void:
         combo = 1
     if telemetry_elapsed > 0.55:
         telemetry_elapsed = 0.0
-        interface_layer.update_graphics_hud(GRAPHICS_NAMES[graphics_index],
+        interface_layer.update_graphics_hud(
+            GRAPHICS_NAMES[graphics_index],
             Engine.get_frames_per_second(),
-            int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
+            int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
+            Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
+            Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
+            render_budget.visible_static,
+            render_budget.total_static,
+            DisplayServer.screen_get_refresh_rate(),
+            RenderingServer.get_current_rendering_method())
     if graphics_index == 1 and perf_elapsed >= 2.5 and elapsed > 6.0:
         perf_elapsed = 0.0
         var fps: int = Engine.get_frames_per_second()
@@ -263,6 +281,7 @@ func _complete_sector() -> void:
     craft.set_active(true)
     combat.reset_sector(sector, int(upgrades["weapon"]))
     world.set_active_gate(0)
+    render_budget.update_budget(true)
     message = "SECTOR %02d CLEARED  •  +%d SALVAGE  •  NEXT: %s" % [completed, bonus, _mission_title()]
     message_age = 0.0
     sound_system.play_finish()
@@ -396,6 +415,7 @@ func _apply_graphics() -> void:
     view.msaa_3d = Viewport.MSAA_DISABLED
     if renderer != "gl_compatibility":
         view.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
+    render_budget.set_quality(graphics_index)
     if graphics_index == 0:
         if renderer != "gl_compatibility":
             view.scaling_3d_scale = 1.0
@@ -408,3 +428,14 @@ func _apply_graphics() -> void:
         if renderer != "gl_compatibility":
             view.scaling_3d_scale = 0.70
         sky_fx.set_low_effects(true)
+
+
+func _toggle_benchmark() -> void:
+    # VSync can cap measured FPS at the currently negotiated display refresh.
+    # This opt-in diagnostic is separate from visual presets; reset it to
+    # return to normal smooth presentation when finished benchmarking.
+    benchmark_unlocked = not benchmark_unlocked
+    DisplayServer.window_set_vsync_mode(
+        DisplayServer.VSYNC_DISABLED if benchmark_unlocked else DisplayServer.VSYNC_ENABLED)
+    interface_layer.update_benchmark(benchmark_unlocked)
+    telemetry_elapsed = 1.0
