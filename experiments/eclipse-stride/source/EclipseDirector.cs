@@ -431,6 +431,9 @@ namespace EclipseHollowSky
                     mode = GameMode.Loading;
                     loadingStep = 0;
                     loadingProgress = 0f;
+                    // Keep the real loading screen visible long enough to read
+                    // even when the small procedural scene initializes quickly.
+                    transitionSeconds = 0.85f;
                     message = "INITIALIZING THE HOLLOW SKY";
                 }
                 Publish();
@@ -454,14 +457,23 @@ namespace EclipseHollowSky
                         FollowCamera();
                         break;
                     default:
-                        mode = GameMode.Menu;
-                        message = "HANGAR READY - CHOOSE YOUR SORTIE";
-                        loadingProgress = 1f;
+                        transitionSeconds -= dt;
+                        if (transitionSeconds <= 0f)
+                        {
+                            mode = GameMode.Menu;
+                            message = "HANGAR READY - CHOOSE YOUR SORTIE";
+                            loadingProgress = 1f;
+                        }
+                        else
+                        {
+                            message = "FINALIZING GAME WORLD";
+                            loadingProgress = 0.97f;
+                        }
                         Publish();
                         return;
                 }
                 loadingStep++;
-                loadingProgress = Math.Clamp(loadingStep / 5f, 0f, 1f);
+                loadingProgress = Math.Clamp(loadingStep / 6f, 0f, 0.92f);
                 Publish();
                 return;
             }
