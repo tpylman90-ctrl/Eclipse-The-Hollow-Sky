@@ -391,18 +391,20 @@ func _apply_graphics() -> void:
         return
     var view := get_viewport()
     var renderer := RenderingServer.get_current_rendering_method()
+    # Mobile Vulkan supports FXAA but not TAA/SSR. Changing MSAA levels mid-run
+    # can trigger pipeline recompilation and tile-memory pressure.
+    view.msaa_3d = Viewport.MSAA_DISABLED
+    if renderer != "gl_compatibility":
+        view.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA
     if graphics_index == 0:
-        view.msaa_3d = Viewport.MSAA_4X
         if renderer != "gl_compatibility":
             view.scaling_3d_scale = 1.0
         sky_fx.set_low_effects(false)
     elif graphics_index == 1:
-        view.msaa_3d = Viewport.MSAA_2X
         if renderer != "gl_compatibility":
             view.scaling_3d_scale = 0.85
         sky_fx.set_low_effects(false)
     else:
-        view.msaa_3d = Viewport.MSAA_DISABLED
         if renderer != "gl_compatibility":
             view.scaling_3d_scale = 0.70
         sky_fx.set_low_effects(true)
