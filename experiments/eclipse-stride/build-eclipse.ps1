@@ -103,35 +103,20 @@ $apk = $apks[0]
 $zip = [System.IO.Compression.ZipFile]::OpenRead($apk.FullName)
 try {
     $entries = @($zip.Entries | ForEach-Object { $_.FullName })
-    if (-not ($entries | Where-Object {
-        $_ -match '^lib/arm64-v8a/lib(assembly-store|assemblies\.arm64-v8a\.blob)\.so
-    })) { throw "The standalone APK is missing its .NET assembly store" }
-    if (-not ($entries | Where-Object { $_ -like 'assets/data/db/bundles/*' })) {
+    $hasStore = @($entries | Where-Object {
+        $_ -match '^lib/arm64-v8a/lib(assembly-store|assemblies\.arm64-v8a\.blob)\.so$'
+    }).Count -gt 0
+    if (-not $hasStore) { throw "The signed APK is missing its .NET assembly store" }
+    if (-not @($entries | Where-Object { $_ -like 'assets/data/db/bundles/*' }).Count) {
         throw "The APK is missing compiled Stride assets"
     }
-    if (-not ($entries | Where-Object { $_ -eq 'AndroidManifest.xml' })) {
+    if (-not ($entries -contains 'AndroidManifest.xml')) {
         throw "Android manifest missing"
     }
-    if (($entries | Where-Object { $_ -match 'PrototypingBlocks|Gun_.*\.(xk|sd)|GridMTWall' }).Count -ne 0) {
+    if (@($entries | Where-Object { $_ -match 'PrototypingBlocks|Gun_.*\.(xk|sd)|GridMTWall' }).Count -ne 0) {
         throw "FPS demo assets are still packaged"
     }
-    Write-Host "Verified Eclipse game APK: $($apk.Length) bytes; $($entries.Count) ZIP entries"
-}
-finally { $zip.Dispose() }
-Copy-Item $apk.FullName (Join-Path $artifact "Eclipse-The-Hollow-Sky-Stride-v1.apk") -Force
-Write-Host "Eclipse Android game APK ready."
-
-    })) { throw "The standalone APK is missing its .NET assembly store" }
-    if (-not ($entries | Where-Object { $_ -like 'assets/data/db/bundles/*' })) {
-        throw "The APK is missing compiled Stride assets"
-    }
-    if (-not ($entries | Where-Object { $_ -eq 'AndroidManifest.xml' })) {
-        throw "Android manifest missing"
-    }
-    if (($entries | Where-Object { $_ -match 'PrototypingBlocks|Gun_.*\.(xk|sd)|GridMTWall' }).Count -ne 0) {
-        throw "FPS demo assets are still packaged"
-    }
-    Write-Host "Verified Eclipse game APK: $($apk.Length) bytes; $($entries.Count) ZIP entries"
+    Write-Host "Verified original Eclipse game APK: $($apk.Length) bytes; $($entries.Count) ZIP entries"
 }
 finally { $zip.Dispose() }
 Copy-Item $apk.FullName (Join-Path $artifact "Eclipse-The-Hollow-Sky-Stride-v1.apk") -Force
