@@ -89,7 +89,15 @@ func _mesh(parent: Node3D, shape: Mesh, pos: Vector3, material: Material) -> Mes
     n.mesh = shape
     n.position = pos
     n.material_override = material
-    n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if material in [basalt, cut_stone, polished_stone, aged_bronze, dark_bronze] else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    # Only substantial stone mass casts real-time sun shadows. Small brass
+    # rails, lintel edging and ornamental trim keep their specular highlights,
+    # but no longer pay an extra depth-pass draw in every shadow cascade.
+    var bounds: Vector3 = shape.get_aabb().size
+    var largest: float = maxf(bounds.x, maxf(bounds.y, bounds.z))
+    var smallest: float = minf(bounds.x, minf(bounds.y, bounds.z))
+    var structural_stone: bool = material in [basalt, cut_stone, polished_stone]
+    var receives_sun_shadow: bool = structural_stone and largest >= 7.5 and smallest >= 0.68
+    n.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if receives_sun_shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     parent.add_child(n)
     return n
 
