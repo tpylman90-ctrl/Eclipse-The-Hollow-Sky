@@ -67,7 +67,7 @@ func set_preset(index: int) -> void:
             sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
             sun.directional_shadow_max_distance = 65.0
             sun.shadow_blur = 0.75
-    render_budget.set_quality(mini(preset, 2))
+    render_budget.set_quality(preset)
     # Preserve primary color design and glowing engine parts.
     # Cut only the redundant transparent cloud bank/remote cascades.
     effects.set_low_effects(preset >= 2)
@@ -101,6 +101,11 @@ func tick(delta: float, benchmarking: bool = false) -> void:
     sum_frame_time = 0.0
     sample_frames = 0
     var target: float = float(TARGETS[preset])
+    var refresh: float = DisplayServer.screen_get_refresh_rate()
+    # A display negotiated to 60 Hz must not trigger endless downscaling
+    # simply because the player asked for Auto 90 on a 120-Hz-capable phone.
+    if refresh > 40.0:
+        target = minf(target, refresh)
     if observed_ms > 1000.0 / (target * 0.93):
         poor_windows += 1
         good_windows = 0
