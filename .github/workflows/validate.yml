@@ -50,8 +50,28 @@ jobs:
             exit 1
           fi
 
-  android-debug:
+  gameplay-smoke:
     needs: godot-smoke
+    runs-on: ubuntu-24.04
+    container:
+      image: barichello/godot-ci:4.5.1
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Import project
+        run: godot --headless --path . --editor --import --quit
+      - name: Validate a full combat and sector progression loop
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tests/smoke_sortie.gd 2>&1 | tee /tmp/eclipsegameplay.log
+          grep -q "ECLIPSE GAMEPLAY SMOKE: PASS" /tmp/eclipsegameplay.log
+          if grep -E 'SCRIPT ERROR|Parse Error|Invalid call|Invalid access|ERROR:.*(GDScript|script|scene)' /tmp/eclipsegameplay.log; then
+            exit 1
+          fi
+
+  android-debug:
+    needs: [godot-smoke, gameplay-smoke]
     runs-on: ubuntu-24.04
     container:
       image: barichello/godot-ci:4.5.1
