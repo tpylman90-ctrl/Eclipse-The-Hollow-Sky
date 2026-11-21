@@ -30,6 +30,9 @@ var message_age := 0.0
 var perf_elapsed := 0.0
 var slow_samples := 0
 var recovery_samples := 0
+var graphics_index := 0
+var telemetry_elapsed := 0.0
+const GRAPHICS_NAMES := ["ULTRA", "HIGH", "SAFE"]
 
 
 func _ready() -> void:
@@ -52,9 +55,11 @@ func _ready() -> void:
     add_child(interface_layer)
     interface_layer.start_requested.connect(_start)
     interface_layer.restart_requested.connect(_start)
+    interface_layer.graphics_preset_requested.connect(_cycle_graphics)
     interface_layer.show_title()
     craft.set_active(false)
     world.set_active_gate(0)
+    _apply_graphics()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -73,7 +78,7 @@ func _start() -> void:
     perf_elapsed = 0.0
     slow_samples = 0
     recovery_samples = 0
-    sky_fx.set_low_effects(false)
+    _apply_graphics()
     message = "ALIGN WITH THE GOLDEN HALO"
     craft.reset_flight()
     craft.set_active(true)
@@ -91,8 +96,12 @@ func _process(delta: float) -> void:
         return
     elapsed += delta
     perf_elapsed += delta
+    telemetry_elapsed += delta
+    if telemetry_elapsed > 0.55:
+        telemetry_elapsed = 0.0
+        interface_layer.update_graphics_hud(GRAPHICS_NAMES[graphics_index], Engine.get_frames_per_second(), int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
     # Sustained FPS checks prevent transient shader-compilation spikes from downgrading visuals.
-    if perf_elapsed >= 2.5 and elapsed > 6.0:
+    if graphics_index == 1 and perf_elapsed >= 2.5 and elapsed > 6.0:
         perf_elapsed = 0.0
         var measured_fps: int = Engine.get_frames_per_second()
         if measured_fps > 0 and measured_fps < 29:
@@ -176,3 +185,29 @@ func _finish(victory: bool) -> void:
     else:
         sound_system.play_damage()
     interface_layer.show_result(victory, score, gate_index)
+
+
+func _cycle_graphics() -> void:
+    graphics_index = (graphics_index + 1) % GRAPHICS_NAMES.size()
+    _apply_graphics()
+    telemetry_elapsed = 1.0
+
+
+func _apply_graphics() -> void:
+    var view := get_viewport()
+    var renderer := RenderingServer.get_current_rendering_method()
+    if graphics_index == 0:
+        view.msaa_3d = Viewport.MSAA_4X
+        if renderer != "gl_compatibility":
+            view.scaling_3d_scale = 1.0
+        sky_fx.set_low_effects(false)
+    elif graphics_index == 1:
+        view.msaa_3d = Viewport.MSAA_2X
+        if renderer != "gl_compatibility":
+            view.scaling_3d_scale = 0.85
+        sky_fx.set_low_effects(false)
+    else:
+        view.msaa_3d = Viewport.MSAA_DISABLED
+        if renderer != "gl_compatibility":
+            view.scaling_3d_scale = 0.70
+        sky_fx.set_low_effects(true)
