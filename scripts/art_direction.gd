@@ -1,6 +1,7 @@
 extends Node3D
 
 const MeshFactory = preload("res://scripts/mesh_factory.gd")
+const MineralAtlas = preload("res://scripts/mineral_atlas.gd")
 const PBR_WEATHER_SHADER = preload("res://shaders/weathered_architecture.gdshader")
 ## Art-pass 02: a cinematic architectural layer, entirely generated from reusable meshes.
 ## Designed for the Godot 4 Compatibility renderer and a midrange/entry-level Android GPU.
@@ -55,6 +56,7 @@ func _ready() -> void:
 func _pbr(base: Color, veins: Color, metal: float, weather: float, rough: float) -> ShaderMaterial:
     var surface := ShaderMaterial.new()
     surface.shader = PBR_WEATHER_SHADER
+    surface.set_shader_parameter("mineral_atlas", MineralAtlas.get_atlas())
     surface.set_shader_parameter("base_tint", base)
     surface.set_shader_parameter("vein_tint", veins)
     surface.set_shader_parameter("polished_edge_tint", base.lightened(0.30))
