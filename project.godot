@@ -8,7 +8,7 @@ config_version=5
 
 config/name="ECLIPSE: THE HOLLOW SKY"
 run/main_scene="res://scenes/main.tscn"
-config/features=PackedStringArray("4.5", "GL Compatibility")
+config/features=PackedStringArray("4.5", "Mobile")
 run/low_processor_mode=false
 
 [display]
@@ -22,8 +22,16 @@ window/handheld/orientation=0
 
 [rendering]
 
-renderer/rendering_method="gl_compatibility"
-renderer/rendering_method.mobile="gl_compatibility"
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
+renderer/rendering_device/driver="vulkan"
+renderer/rendering_device/fallback_to_opengl3=true
+anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/msaa_3d.mobile=2
+lights_and_shadows/directional_shadow/size=4096
+lights_and_shadows/directional_shadow/size.mobile=4096
+environment/glow/upscale_mode=1
+environment/glow/upscale_mode.mobile=1
 textures/default_filters/use_nearest_mipmap_filter=false
 environment/defaults/default_clear_color=Color(0.039, 0.055, 0.125, 1)
 
