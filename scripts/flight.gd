@@ -9,6 +9,7 @@ const ThrusterFXScript = preload("res://scripts/thruster_fx.gd")
 
 var active := false
 var energy := 100.0
+var max_energy := 100.0
 var forward_speed := 36.0
 var velocity_xy := Vector2.ZERO
 var current_boost := false
@@ -196,7 +197,7 @@ func _surface(vertices: Array[Vector3], material: Material) -> void:
 func reset_flight() -> void:
     position = Vector3(0.0, 7.5, 18.0)
     velocity_xy = Vector2.ZERO
-    energy = 100.0
+    energy = max_energy
     forward_speed = 36.0
     current_boost = false
     body.rotation = Vector3.ZERO
@@ -209,8 +210,10 @@ func set_active(enabled: bool) -> void:
 func _physics_process(delta: float) -> void:
     phase += delta
     if active:
-        var side := Input.get_axis("steer_left", "steer_right")
-        var pitch := Input.get_axis("steer_down", "steer_up")
+        # Analog strengths from touch stick, physical controller or keyboard.
+        var axis := Input.get_vector("steer_left", "steer_right", "steer_down", "steer_up", 0.07)
+        var side: float = axis.x
+        var pitch: float = -axis.y
         velocity_xy.x = move_toward(velocity_xy.x, side * 30.0, delta * 55.0)
         velocity_xy.y = move_toward(velocity_xy.y, pitch * 24.0, delta * 44.0)
         var wants_boost := Input.is_action_pressed("boost") and energy > 3.0
@@ -218,7 +221,7 @@ func _physics_process(delta: float) -> void:
         if wants_boost:
             energy = maxf(0.0, energy - 31.0 * delta)
         else:
-            energy = minf(100.0, energy + 14.0 * delta)
+            energy = minf(max_energy, energy + 14.0 * delta)
         var target_speed := 64.0 if wants_boost else (19.0 if Input.is_action_pressed("brake") else 36.0)
         forward_speed = move_toward(forward_speed, target_speed, delta * 37.0)
         position += Vector3(velocity_xy.x, velocity_xy.y, -forward_speed) * delta
