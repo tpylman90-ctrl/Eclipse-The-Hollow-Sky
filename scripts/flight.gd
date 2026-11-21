@@ -1,4 +1,6 @@
 extends Node3D
+
+const SkiffArtScript = preload("res://scripts/skiff_art.gd")
 ## Lightweight third-person flight controller and original hard-surface skiff mesh.
 
 var active := false
@@ -20,23 +22,26 @@ var thruster_mat: StandardMaterial3D
 
 
 func _ready() -> void:
-    hull_mat = _material(Color(0.22, 0.30, 0.40), 0.36, 0.65)
-    armor_mat = _material(Color(0.51, 0.59, 0.62), 0.27, 0.72)
-    canopy_mat = _material(Color(0.08, 0.24, 0.32), 0.12, 0.54)
+    hull_mat = _material(Color("#2d3a48"), 0.34, 0.53)
+    armor_mat = _material(Color("#7e989e"), 0.25, 0.68)
+    canopy_mat = _material(Color("#133547"), 0.10, 0.47)
     trim_mat = _emissive(Color(0.17, 0.96, 0.92), 3.1)
     thruster_mat = _emissive(Color(1.0, 0.49, 0.22), 3.8)
     body = Node3D.new()
     body.name = "Aether_Skiff"
     add_child(body)
     _make_skiff()
+    var detail := SkiffArtScript.new()
+    detail.name = "HullDetailArt"
+    body.add_child(detail)
     chase_camera = Camera3D.new()
     chase_camera.name = "ChaseCamera"
     chase_camera.current = true
-    chase_camera.fov = 77.0
+    chase_camera.fov = 74.0
     chase_camera.near = 0.13
     chase_camera.far = 1450.0
     get_parent().add_child(chase_camera)
-    chase_camera.global_position = global_position + Vector3(0.0, 6.0, 15.0)
+    chase_camera.global_position = global_position + Vector3(0.0, 4.8, 12.0)
     chase_camera.look_at(global_position + Vector3(0.0, 1.0, -12.0), Vector3.UP)
 
 
@@ -209,7 +214,7 @@ func _physics_process(delta: float) -> void:
     if plume_left != null:
         plume_left.scale.z = lerpf(plume_left.scale.z, 3.3 if current_boost else 1.6, delta * 9.0)
         plume_right.scale.z = plume_left.scale.z
-    var follow_pos := global_position + Vector3(0.0, 5.3, 14.4)
+    var follow_pos := global_position + Vector3(0.0, 4.4, 11.8)
     chase_camera.global_position = chase_camera.global_position.lerp(follow_pos, minf(1.0, delta * 5.5))
-    chase_camera.look_at(global_position + Vector3(0.0, 0.7, -15.0), Vector3.UP)
-    chase_camera.fov = lerpf(chase_camera.fov, 88.0 if current_boost else 77.0, minf(1.0, delta * 3.5))
+    chase_camera.look_at(global_position + Vector3(0.0, 0.7, -18.0), Vector3.UP)
+    chase_camera.fov = lerpf(chase_camera.fov, 83.0 if current_boost else 74.0, minf(1.0, delta * 3.5))
