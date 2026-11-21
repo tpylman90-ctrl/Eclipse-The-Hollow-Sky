@@ -55,32 +55,31 @@ $graphics = $graphics.Replace(
     "Color: {R: 0.40491876, G: 0.41189542, B: 0.43775, A: 1.0}",
     "Color: {R: 0.055, G: 0.075, B: 0.17, A: 1.0}")
 [System.IO.File]::WriteAllText($compositor,$graphics)
-# Bind the custom chase camera to the active camera slot in the compositor.
-# Without this, the v1 APK displayed Android controls over a black screen.
+
+# Correct camera slot mismatch: compositor controls the scene camera.
 $sceneFile = Join-Path $assetsDir "MainScene.sdscene"
 $sceneData = [System.IO.File]::ReadAllText($sceneFile)
-$activeCamera = [regex]::Match($graphics, '(?m)^\s*Camera:\s*ref!!\s*([0-9A-Fa-f-]{36})\s*$')
-$sceneCamera = [regex]::Match($sceneData, '(?m)^\s*Slot:\s*([0-9A-Fa-f-]{36})\s*$')
-if (-not $activeCamera.Success -or -not $sceneCamera.Success) {
-    throw "Could not match the Stride compositor camera and Eclipse chase camera"
+$cameraBinding = [regex]::Match($graphics, '(?m)^\s*Camera:\s*ref!!\s*([0-9a-fA-F-]{36})\s*$')
+$cameraSlot = [regex]::Match($sceneData, '(?m)^\s*Slot:\s*([0-9a-fA-F-]{36})\s*$')
+if (-not $cameraBinding.Success -or -not $cameraSlot.Success) {
+    throw "Graphics compositor and Eclipse camera did not resolve"
 }
-$compositorSlot = $activeCamera.Groups[1].Value
-$sceneData = $sceneData.Replace($sceneCamera.Groups[1].Value, $compositorSlot)
+$correctSlot = $cameraBinding.Groups[1].Value
+$sceneData = $sceneData.Replace($cameraSlot.Groups[1].Value, $correctSlot)
 [System.IO.File]::WriteAllText($sceneFile, $sceneData)
-Write-Host "Eclipse chase camera bound to compositor slot: $compositorSlot"
+Write-Host "Verified camera slot: $correctSlot"
 
-# The generated GameSettings still points at the deleted FPS scene GUID.
-$sceneMatch = [regex]::Match($sceneData, '(?m)^Id:\s*([0-9A-Fa-f-]{36})\s*$')
-if (-not $sceneMatch.Success) { throw "Could not read Eclipse scene GUID" }
-$sceneGuid = $sceneMatch.Groups[1].Value
+# Point GameSettings.DefaultScene at Eclipse rather than deleted FPS scene.
+$sceneGuidMatch = [regex]::Match($sceneData, '(?m)^Id:\s*([0-9a-fA-F-]{36})\s*$')
+if (-not $sceneGuidMatch.Success) { throw "Eclipse scene ID missing" }
+$sceneGuid = $sceneGuidMatch.Groups[1].Value
 $settingText = [regex]::Replace($settingText,
-    'DefaultScene:\s*[0-9A-Fa-f-]{36}:MainScene',
-    "DefaultScene: ${sceneGuid}:MainScene")
+    'DefaultScene:\s*[0-9a-fA-F-]{36}:MainScene', "DefaultScene: ${sceneGuid}:MainScene")
 if (-not $settingText.Contains("DefaultScene: ${sceneGuid}:MainScene")) {
-    throw "GameSettings has an invalid DefaultScene reference"
+    throw "GameSettings DefaultScene was not updated"
 }
 [System.IO.File]::WriteAllText($settings, $settingText)
-Write-Host "GameSettings bound to Eclipse scene: $sceneGuid"
+Write-Host "Verified Eclipse default scene: $sceneGuid"
 
 
 $androidProject = Join-Path $androidDir "StrideGraphicsTest.Android.csproj"
@@ -130,36 +129,21 @@ $apk = $apks[0]
 $zip = [System.IO.Compression.ZipFile]::OpenRead($apk.FullName)
 try {
     $entries = @($zip.Entries | ForEach-Object { $_.FullName })
-    if (-not ($entries | Where-Object {
-        $_ -match '^lib/arm64-v8a/lib(assembly-store|assemblies\.arm64-v8a\.blob)\.so
-    })) { throw "The standalone APK is missing its .NET assembly store" }
-    if (-not ($entries | Where-Object { $_ -like 'assets/data/db/bundles/*' })) {
+    $hasStore = @($entries | Where-Object {
+        $_ -match '^lib/arm64-v8a/lib(assembly-store|assemblies\.arm64-v8a\.blob)\.so$'
+    }).Count -gt 0
+    if (-not $hasStore) { throw "The signed APK is missing its .NET assembly store" }
+    if (-not @($entries | Where-Object { $_ -like 'assets/data/db/bundles/*' }).Count) {
         throw "The APK is missing compiled Stride assets"
     }
-    if (-not ($entries | Where-Object { $_ -eq 'AndroidManifest.xml' })) {
+    if (-not ($entries -contains 'AndroidManifest.xml')) {
         throw "Android manifest missing"
     }
-    if (($entries | Where-Object { $_ -match 'PrototypingBlocks|Gun_.*\.(xk|sd)|GridMTWall' }).Count -ne 0) {
+    if (@($entries | Where-Object { $_ -match 'PrototypingBlocks|Gun_.*\.(xk|sd)|GridMTWall' }).Count -ne 0) {
         throw "FPS demo assets are still packaged"
     }
-    Write-Host "Verified Eclipse game APK: $($apk.Length) bytes; $($entries.Count) ZIP entries"
+    Write-Host "Verified original Eclipse game APK: $($apk.Length) bytes; $($entries.Count) ZIP entries"
 }
 finally { $zip.Dispose() }
 Copy-Item $apk.FullName (Join-Path $artifact "Eclipse-The-Hollow-Sky-Stride-v2.apk") -Force
-Write-Host "Eclipse Android game APK ready."
-
-    })) { throw "The standalone APK is missing its .NET assembly store" }
-    if (-not ($entries | Where-Object { $_ -like 'assets/data/db/bundles/*' })) {
-        throw "The APK is missing compiled Stride assets"
-    }
-    if (-not ($entries | Where-Object { $_ -eq 'AndroidManifest.xml' })) {
-        throw "Android manifest missing"
-    }
-    if (($entries | Where-Object { $_ -match 'PrototypingBlocks|Gun_.*\.(xk|sd)|GridMTWall' }).Count -ne 0) {
-        throw "FPS demo assets are still packaged"
-    }
-    Write-Host "Verified Eclipse game APK: $($apk.Length) bytes; $($entries.Count) ZIP entries"
-}
-finally { $zip.Dispose() }
-Copy-Item $apk.FullName (Join-Path $artifact "Eclipse-The-Hollow-Sky-Stride-v1.apk") -Force
 Write-Host "Eclipse Android game APK ready."
