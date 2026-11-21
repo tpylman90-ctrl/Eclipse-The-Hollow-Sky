@@ -24,6 +24,10 @@ var low_detail_distant := false
 var simplified_static := 0
 var far_start := 230.0
 var lod_eligible := 0
+var shadow_candidates := 0
+var active_shadow_casters := 0
+var shadow_range := 120.0
+var camera_obstructions_hidden := 0
 
 func configure(course, architecture, effects, chase: Camera3D) -> void:
     world = course
@@ -32,6 +36,7 @@ func configure(course, architecture, effects, chase: Camera3D) -> void:
     geometry.clear()
     cheap_materials.clear()
     lod_eligible = 0
+    shadow_candidates = 0
     gates.clear()
     cascades.clear()
     _collect_static(course)
@@ -66,8 +71,14 @@ func _collect_static(parent: Node) -> void:
                     var distant: Material = _make_far_material(original)
                     if distant != null:
                         lod_eligible += 1
+                    var casts_shadow: bool = item.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+                    if casts_shadow:
+                        shadow_candidates += 1
                     geometry.append({
                         "mesh": item, "z": center.z, "radius": half_extent,
+                        "center": center, "casts_shadow": casts_shadow,
+                        "shadow_active": casts_shadow,
+                        "camera_hidden": false,
                         "original": original, "distant": distant, "is_distant": false
                     })
         _collect_static(child)
@@ -97,6 +108,7 @@ func _make_far_material(source: Material) -> Material:
 
 func set_quality(level: int) -> void:
     low_detail_distant = level >= 2
+    shadow_range = [145.0, 96.0, 74.0, 54.0][clampi(level, 0, 3)]
     match level:
         0:
             ahead_distance = 455.0
@@ -127,6 +139,9 @@ func update_budget(force: bool) -> void:
     visible_static = 0
     hidden_static = 0
     simplified_static = 0
+    active_shadow_casters = 0
+    camera_obstructions_hidden = 0
+    var camera_pos := camera.global_position
     for entry in geometry:
         var node := entry["mesh"] as MeshInstance3D
         if not is_instance_valid(node):
@@ -134,12 +149,46 @@ func update_budget(force: bool) -> void:
         var radius: float = float(entry["radius"])
         var delta_z: float = forward_z - float(entry["z"])
         var should_show: bool = delta_z > -behind_distance - radius and delta_z < ahead_distance + radius
+        # Camera-near geometry can fill the whole frame. Hide only static
+        # elements whose actual local bounds envelop the camera, restoring
+        # them once the camera exits (with a modest hysteresis margin).
+        var camera_hidden: bool = bool(entry["camera_hidden"])
+        if should_show and radius < 58.0:
+            var center: Vector3 = entry["center"]
+            if center.distance_to(camera_pos) < radius + 9.0:
+                var cam_local: Vector3 = node.global_transform.affine_inverse() * camera_pos
+                var margin: float = 3.5 if camera_hidden else 1.15
+                camera_hidden = node.get_aabb().grow(margin).has_point(cam_local)
+            else:
+                camera_hidden = false
+        else:
+            camera_hidden = false
+        entry["camera_hidden"] = camera_hidden
+        should_show = should_show and not camera_hidden
         if node.visible != should_show:
             node.visible = should_show
         if should_show:
             visible_static += 1
         else:
             hidden_static += 1
+        if camera_hidden:
+            camera_obstructions_hidden += 1
+
+        # Keep near structural shadows but stop submitting distant casters
+        # to both cascades. Dynamic gate lights remain completely untouched.
+        if bool(entry["casts_shadow"]):
+            var currently_casting: bool = bool(entry["shadow_active"])
+            var caster_center: Vector3 = entry["center"]
+            var effective_distance: float = caster_center.distance_to(camera_pos) - minf(radius, 13.0)
+            var cutoff: float = shadow_range + (11.0 if currently_casting else -11.0)
+            var cast_now: bool = should_show and effective_distance < cutoff
+            if cast_now != currently_casting:
+                node.cast_shadow = (
+                    GeometryInstance3D.SHADOW_CASTING_SETTING_ON if cast_now
+                    else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+                entry["shadow_active"] = cast_now
+            if cast_now:
+                active_shadow_casters += 1
         # Material-only LOD: geometry silhouettes are unchanged. Only far-away
         # mineral noise shading is replaced with palette-matched cheap PBR.
         var distant: Material = entry["distant"]
