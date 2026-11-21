@@ -3,6 +3,8 @@ extends Node3D
 ## No physics-body spam: timed, analytic 3D collisions keep Android draw/CPU costs low.
 
 signal enemy_destroyed(points: int, salvage: int, elite: bool)
+signal plasma_fired
+signal hostile_struck
 signal player_damaged(amount: int)
 signal supply_collected(kind: String)
 
@@ -199,6 +201,7 @@ func fire() -> void:
             if alignment > nearest_angle:
                 nearest_angle = alignment
                 aim = to_enemy.normalized()
+    plasma_fired.emit()
     var shot_count := 2 if weapon_level >= 2 else 1
     for i in range(shot_count):
         var side: float = float(i) * 2.0 - float(shot_count - 1)
@@ -267,6 +270,7 @@ func _update_shots(delta: float) -> void:
                 var n: Node3D = enemy_data["node"]
                 var radius: float = 6.3 if bool(enemy_data["elite"]) else 2.8
                 if bullet.global_position.distance_to(n.global_position) < radius:
+                    hostile_struck.emit()
                     enemy_data["hp"] = int(enemy_data["hp"]) - (1 + mini(weapon_level, 1))
                     struck = true
                     if int(enemy_data["hp"]) <= 0:
