@@ -1,5 +1,7 @@
 extends Node3D
 
+const MeshFactory = preload("res://scripts/mesh_factory.gd")
+
 const SkiffArtScript = preload("res://scripts/skiff_art.gd")
 const ThrusterFXScript = preload("res://scripts/thruster_fx.gd")
 ## Lightweight third-person flight controller and original hard-surface skiff mesh.
@@ -142,9 +144,8 @@ func _make_skiff() -> void:
 
 
 func _box(size: Vector3, at: Vector3, material: Material) -> void:
-    var shape := BoxMesh.new()
-    shape.size = size
-    _mesh(shape, at, material)
+    var bevel: float = minf(0.22, minf(size.x, minf(size.y, size.z)) * 0.22)
+    _mesh(MeshFactory.bevel_box(size, bevel), at, material)
 
 
 func _cylinder(radius: float, length: float, at: Vector3, material: Material) -> void:
