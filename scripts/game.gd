@@ -6,6 +6,7 @@ const FlightScript = preload("res://scripts/flight.gd")
 const InterfaceScript = preload("res://scripts/interface.gd")
 const SoundScript = preload("res://scripts/sound.gd")
 const ArtScript = preload("res://scripts/art_direction.gd")
+const SkyFXScript = preload("res://scripts/sky_fx.gd")
 
 enum Mode { TITLE, FLIGHT, END }
 
@@ -18,6 +19,7 @@ var craft
 var interface_layer
 var sound_system
 var art_director: Node3D
+var sky_fx
 var elapsed := 0.0
 var time_remaining := INITIAL_TIME
 var gate_index := 0
@@ -37,6 +39,9 @@ func _ready() -> void:
     art_director = ArtScript.new()
     art_director.name = "CinematicArtDirection"
     add_child(art_director)
+    sky_fx = SkyFXScript.new()
+    sky_fx.name = "AmbientSkyEffects"
+    add_child(sky_fx)
     craft.reset_flight()
     sound_system = SoundScript.new()
     add_child(sound_system)
@@ -73,6 +78,7 @@ func _start() -> void:
 
 func _process(delta: float) -> void:
     world.update_world(delta)
+    sky_fx.update_fx(delta, mode == Mode.FLIGHT)
     sound_system.set_boost(craft.current_boost, delta)
     if mode != Mode.FLIGHT:
         return
