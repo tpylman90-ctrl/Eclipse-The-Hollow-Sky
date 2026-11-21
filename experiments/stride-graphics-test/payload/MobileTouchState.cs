@@ -13,6 +13,30 @@ namespace StrideGraphicsTest.Player
         private static bool firing;
         private static bool reloading;
         private static volatile bool enabled;
+        private static float sensitivity = 1.0f;
+        private static float updateFps;
+
+        public static float LookSensitivity
+        {
+            get { lock (Gate) return sensitivity; }
+        }
+
+        public static float UpdateFps
+        {
+            get { lock (Gate) return updateFps; }
+        }
+
+        public static void AdjustLookSensitivity(float amount)
+        {
+            lock (Gate)
+                sensitivity = Math.Clamp(sensitivity + amount, 0.5f, 2.5f);
+        }
+
+        public static void SetUpdateFps(float value)
+        {
+            lock (Gate)
+                updateFps = value;
+        }
         public static bool Enabled => enabled;
 
         public static void SetActive(bool active)
@@ -43,8 +67,8 @@ namespace StrideGraphicsTest.Player
             lock (Gate)
             {
                 lookDelta += new Vector2(
-                    Math.Clamp(horizontal, -0.15f, 0.15f),
-                    Math.Clamp(vertical, -0.15f, 0.15f));
+                    Math.Clamp(horizontal, -18f, 18f),
+                    Math.Clamp(vertical, -18f, 18f));
             }
         }
 
