@@ -376,7 +376,7 @@ func update_hangar(credits: int, best: int, levels: Dictionary) -> void:
             continue
         var lv: int = int(levels.get(kind, 0))
         var cost: int = 100 * (lv + 1) * (lv + 1)
-        var title_text := {"hull": "HULL REINFORCEMENT", "weapon": "PLASMA CANNON", "reactor": "REACTOR CAPACITY"}[kind]
+        var title_text: String = {"hull": "HULL REINFORCEMENT", "weapon": "PLASMA CANNON", "reactor": "REACTOR CAPACITY"}[kind]
         button.text = "%s  LV %d  •  %s" % [title_text, lv, ("MAXED" if lv >= 3 else str(cost) + " SC")]
         button.disabled = lv >= 3 or credits < cost
 
