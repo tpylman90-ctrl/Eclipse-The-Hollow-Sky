@@ -1,0 +1,74 @@
+!SceneAsset
+Id: 7B2D9EFE-C961-4FF5-A1A8-B41BCA83DAEF
+SerializedVersion: {Stride: 3.1.0.1}
+Tags: []
+ChildrenIds: []
+Offset: {X: 0.0, Y: 0.0, Z: 0.0}
+Hierarchy:
+    RootParts:
+        - ref!! 66B64DD2-F5B4-4723-B39C-608309370AA1
+        - ref!! 66B64DD2-F5B4-4723-B39C-608309370AA2
+        - ref!! 66B64DD2-F5B4-4723-B39C-608309370AA3
+        - ref!! 66B64DD2-F5B4-4723-B39C-608309370AA4
+    Parts:
+        -   Entity:
+                Id: 66B64DD2-F5B4-4723-B39C-608309370AA1
+                Name: EclipseDirector
+                Components:
+                    311E813623FE421CA64D711BCE880111: !TransformComponent
+                        Id: 618201CD-A64B-4C5C-AAD4-376BAE291D01
+                        Position: {X: 0.0, Y: 0.0, Z: 0.0}
+                        Rotation: {X: 0.0, Y: 0.0, Z: 0.0, W: 1.0}
+                        Scale: {X: 1.0, Y: 1.0, Z: 1.0}
+                        Children: {}
+                    311E813623FE421CA64D711BCE880112: !EclipseHollowSky.EclipseDirector,StrideGraphicsTest.Game
+                        Id: 618201CD-A64B-4C5C-AAD4-376BAE291D02
+        -   Entity:
+                Id: 66B64DD2-F5B4-4723-B39C-608309370AA2
+                Name: EclipseChaseCamera
+                Components:
+                    311E813623FE421CA64D711BCE880121: !TransformComponent
+                        Id: 618201CD-A64B-4C5C-AAD4-376BAE291D11
+                        Position: {X: 0.0, Y: 20.0, Z: 40.0}
+                        Rotation: {X: 0.0, Y: 0.0, Z: 0.0, W: 1.0}
+                        Scale: {X: 1.0, Y: 1.0, Z: 1.0}
+                        Children: {}
+                    311E813623FE421CA64D711BCE880122: !CameraComponent
+                        Id: 618201CD-A64B-4C5C-AAD4-376BAE291D12
+                        Name: Main
+                        Projection: Perspective
+                        Slot: 2F29A02E-5C6D-4D71-9616-88AC77886C8A
+        -   Entity:
+                Id: 66B64DD2-F5B4-4723-B39C-608309370AA3
+                Name: HollowSkyAmbient
+                Components:
+                    311E813623FE421CA64D711BCE880131: !TransformComponent
+                        Id: 618201CD-A64B-4C5C-AAD4-376BAE291D21
+                        Position: {X: 0.0, Y: 0.0, Z: 0.0}
+                        Rotation: {X: 0.0, Y: 0.0, Z: 0.0, W: 1.0}
+                        Scale: {X: 1.0, Y: 1.0, Z: 1.0}
+                        Children: {}
+                    311E813623FE421CA64D711BCE880132: !LightComponent
+                        Id: 618201CD-A64B-4C5C-AAD4-376BAE291D22
+                        Type: !LightAmbient
+                            Color: !ColorRgbProvider
+                                Value: {R: 0.67, G: 0.73, B: 0.92}
+                            Intensity: 0.85
+        -   Entity:
+                Id: 66B64DD2-F5B4-4723-B39C-608309370AA4
+                Name: WarmLowSun
+                Components:
+                    311E813623FE421CA64D711BCE880141: !TransformComponent
+                        Id: 618201CD-A64B-4C5C-AAD4-376BAE291D31
+                        Position: {X: -90.0, Y: 140.0, Z: -450.0}
+                        Rotation: {X: -0.5540323, Y: 0.21201216, Z: 0.1484525, W: 0.7912401}
+                        Scale: {X: 1.0, Y: 1.0, Z: 1.0}
+                        Children: {}
+                    311E813623FE421CA64D711BCE880142: !LightComponent
+                        Id: 618201CD-A64B-4C5C-AAD4-376BAE291D32
+                        Type: !LightDirectional
+                            Color: !ColorRgbProvider
+                                Value: {R: 1.0, G: 0.75, B: 0.62}
+                            Shadow:
+                                Enabled: false
+                            Intensity: 2.6
