@@ -201,6 +201,10 @@ func reset_flight() -> void:
     forward_speed = 36.0
     current_boost = false
     body.rotation = Vector3.ZERO
+    # Instantly restore camera after a sector transition; no one-second camera catch-up.
+    if chase_camera != null:
+        chase_camera.global_position = global_position + Vector3(0.0, 3.9, 10.4)
+        chase_camera.look_at(global_position + Vector3(0.0, 0.7, -20.0), Vector3.UP)
 
 
 func set_active(enabled: bool) -> void:
