@@ -150,7 +150,7 @@ func _make_island(pos: Vector3, radius: float, rng: RandomNumberGenerator, templ
     surface.begin(Mesh.PRIMITIVE_TRIANGLES)
     surface.set_smooth_group(-1)
     var sections := 28 if radius >= 18.0 else 17
-    var bands: Array[Array] = []
+    var bands: Array = []
     for ring_index in range(5):
         var band: Array[Vector3] = []
         for n in range(sections):
