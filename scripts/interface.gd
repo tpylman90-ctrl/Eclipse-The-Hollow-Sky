@@ -113,33 +113,56 @@ func _build_menu() -> void:
     menu = Control.new()
     _fill(menu)
     root.add_child(menu)
-    _scrim(menu, 0.69)
-    var vertical := VBoxContainer.new()
-    vertical.anchor_left = 0.14
-    vertical.anchor_right = 0.86
-    vertical.anchor_top = 0.18
-    vertical.anchor_bottom = 0.86
-    vertical.alignment = BoxContainer.ALIGNMENT_CENTER
-    vertical.add_theme_constant_override("separation", 15)
-    menu.add_child(vertical)
-    var eyebrow := _label("A  S I G N A L  F R O M  B E Y O N D", 15, AQUA, HORIZONTAL_ALIGNMENT_CENTER)
-    vertical.add_child(eyebrow)
-    var heading := _label("E C L I P S E", 66, WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-    vertical.add_child(heading)
-    var sub := _label("T H E   H O L L O W   S K Y", 26, GOLD, HORIZONTAL_ALIGNMENT_CENTER)
-    vertical.add_child(sub)
-    var space := Control.new()
-    space.custom_minimum_size.y = 28
-    vertical.add_child(space)
-    var blurb := _label("SEVEN SIGNALS. ONE LAST PASSAGE.\nFly through the lost beacons before the light runs out.", 19, WHITE, HORIZONTAL_ALIGNMENT_CENTER)
-    vertical.add_child(blurb)
-    var start := _button("BEGIN THE FLIGHT", true)
+    _scrim(menu, 0.77)
+    var layout := HBoxContainer.new()
+    layout.anchor_left = 0.07
+    layout.anchor_right = 0.93
+    layout.anchor_top = 0.13
+    layout.anchor_bottom = 0.91
+    layout.add_theme_constant_override("separation", 40)
+    menu.add_child(layout)
+
+    var left := VBoxContainer.new()
+    left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+    left.alignment = BoxContainer.ALIGNMENT_CENTER
+    left.add_theme_constant_override("separation", 14)
+    layout.add_child(left)
+    left.add_child(_label("A SIGNAL FROM BEYOND", 16, AQUA, HORIZONTAL_ALIGNMENT_CENTER))
+    left.add_child(_label("E C L I P S E", 52, WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+    left.add_child(_label("THE HOLLOW SKY", 26, GOLD, HORIZONTAL_ALIGNMENT_CENTER))
+    var gap := Control.new()
+    gap.custom_minimum_size.y = 16.0
+    left.add_child(gap)
+    left.add_child(_label("THE AETHER WAR", 19, AQUA, HORIZONTAL_ALIGNMENT_CENTER))
+    left.add_child(_label("Hunt the Wardens. Recover the lost beacons.\nBank salvage and upgrade your craft.\nEvery sector brings stronger hunters.", 18, WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+    var start := _button("LAUNCH SORTIE", true)
+    start.custom_minimum_size = Vector2(265.0, 68.0)
     start.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-    vertical.add_child(start)
+    left.add_child(start)
     start.pressed.connect(func(): start_requested.emit())
-    var hint_text := "DRAG THE VIRTUAL CONTROLS TO FLY  •  BOOST TO ACCELERATE" if OS.has_feature("mobile") else "WASD / ARROWS  •  SPACE BOOST  •  SHIFT BRAKE  •  ENTER START"
-    var hint := _label(hint_text, 14, Color(0.68, 0.79, 0.82), HORIZONTAL_ALIGNMENT_CENTER)
-    vertical.add_child(hint)
+    left.add_child(_label("LEFT STICK  •  FIRE  •  BOOST  •  BRAKE", 13, WHITE, HORIZONTAL_ALIGNMENT_CENTER))
+
+    var right := VBoxContainer.new()
+    right.custom_minimum_size.x = 398.0
+    right.alignment = BoxContainer.ALIGNMENT_CENTER
+    right.add_theme_constant_override("separation", 15)
+    layout.add_child(right)
+    right.add_child(_label("THE HANGAR", 30, GOLD, HORIZONTAL_ALIGNMENT_CENTER))
+    hangar_balance = _label("SALVAGE 0  •  RECORD 0", 17, AQUA, HORIZONTAL_ALIGNMENT_CENTER)
+    right.add_child(hangar_balance)
+    var notes := _label("PERMANENT SHIP UPGRADES", 16, WHITE, HORIZONTAL_ALIGNMENT_CENTER)
+    right.add_child(notes)
+    hull_upgrade_button = _button("HULL REINFORCEMENT")
+    weapon_upgrade_button = _button("PLASMA CANNON")
+    reactor_upgrade_button = _button("REACTOR CAPACITY")
+    for b in [hull_upgrade_button, weapon_upgrade_button, reactor_upgrade_button]:
+        b.custom_minimum_size = Vector2(385.0, 62.0)
+        b.add_theme_font_size_override("font_size", 16)
+        right.add_child(b)
+    hull_upgrade_button.pressed.connect(func(): upgrade_requested.emit("hull"))
+    weapon_upgrade_button.pressed.connect(func(): upgrade_requested.emit("weapon"))
+    reactor_upgrade_button.pressed.connect(func(): upgrade_requested.emit("reactor"))
+    right.add_child(_label("SALVAGE SURVIVES BETWEEN SORTIES", 14, GOLD, HORIZONTAL_ALIGNMENT_CENTER))
 
 
 func _build_hud() -> void:
@@ -283,6 +306,10 @@ func _build_results() -> void:
     retry.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
     vertical.add_child(retry)
     retry.pressed.connect(func(): restart_requested.emit())
+    var hangar := _button("RETURN TO HANGAR")
+    hangar.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+    vertical.add_child(hangar)
+    hangar.pressed.connect(func(): hangar_requested.emit())
 
 
 func show_title() -> void:
