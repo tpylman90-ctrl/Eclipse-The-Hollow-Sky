@@ -1,4 +1,7 @@
 extends Node
+
+const STRATA_SHADER = preload("res://shaders/strata.gdshader")
+const WEATHER_SHADER = preload("res://shaders/weathered_architecture.gdshader")
 ## Static render working-set controller.
 ## Godot frustum culling handles camera angles. This conservative forward/back
 ## visibility window prevents submitting distant course sections, long before
@@ -16,12 +19,19 @@ var behind_distance := 115.0
 var total_static := 0
 var visible_static := 0
 var hidden_static := 0
+var cheap_materials: Dictionary = {}
+var low_detail_distant := false
+var simplified_static := 0
+var far_start := 230.0
+var lod_eligible := 0
 
 func configure(course, architecture, effects, chase: Camera3D) -> void:
     world = course
     sky_fx = effects
     camera = chase
     geometry.clear()
+    cheap_materials.clear()
+    lod_eligible = 0
     gates.clear()
     cascades.clear()
     _collect_static(course)
@@ -52,18 +62,54 @@ func _collect_static(parent: Node) -> void:
                 if center.x < -180.0 and center.y > 55.0 and center.z < -1050.0:
                     huge = true
                 if not huge:
-                    geometry.append({"mesh": item, "z": center.z, "radius": half_extent})
+                    var original: Material = item.material_override
+                    var distant: Material = _make_far_material(original)
+                    if distant != null:
+                        lod_eligible += 1
+                    geometry.append({
+                        "mesh": item, "z": center.z, "radius": half_extent,
+                        "original": original, "distant": distant, "is_distant": false
+                    })
         _collect_static(child)
 
 
+func _make_far_material(source: Material) -> Material:
+    if not source is ShaderMaterial:
+        return null
+    var source_shader := (source as ShaderMaterial).shader
+    var tint: Color
+    if source_shader == STRATA_SHADER:
+        tint = (source as ShaderMaterial).get_shader_parameter("stone_tint")
+    elif source_shader == WEATHER_SHADER:
+        tint = (source as ShaderMaterial).get_shader_parameter("base_tint")
+    else:
+        return null
+    var key: String = tint.to_html(false)
+    if cheap_materials.has(key):
+        return cheap_materials[key]
+    var far := StandardMaterial3D.new()
+    far.albedo_color = tint * Color(0.96, 0.97, 1.0, 1.0)
+    far.roughness = 0.77
+    far.metallic = 0.12
+    cheap_materials[key] = far
+    return far
+
+
 func set_quality(level: int) -> void:
+    low_detail_distant = level >= 2
     match level:
         0:
             ahead_distance = 455.0
+            far_start = 100000.0
         1:
             ahead_distance = 350.0
+            far_start = 100000.0
+        2:
+            ahead_distance = 290.0
+            far_start = 175.0
         _:
-            ahead_distance = 265.0
+            ahead_distance = 245.0
+            far_start = 130.0
     update_budget(true)
 
 
@@ -80,6 +126,7 @@ func update_budget(force: bool) -> void:
     var forward_z: float = camera.global_position.z
     visible_static = 0
     hidden_static = 0
+    simplified_static = 0
     for entry in geometry:
         var node := entry["mesh"] as MeshInstance3D
         if not is_instance_valid(node):
@@ -93,6 +140,18 @@ func update_budget(force: bool) -> void:
             visible_static += 1
         else:
             hidden_static += 1
+        # Material-only LOD: geometry silhouettes are unchanged. Only far-away
+        # mineral noise shading is replaced with palette-matched cheap PBR.
+        var distant: Material = entry["distant"]
+        if distant != null:
+            var currently_distant: bool = bool(entry["is_distant"])
+            var switch_distance: float = far_start + (-15.0 if currently_distant else 15.0)
+            var want_distant: bool = low_detail_distant and should_show and delta_z > switch_distance
+            if want_distant != currently_distant:
+                node.material_override = distant if want_distant else entry["original"]
+                entry["is_distant"] = want_distant
+            if want_distant:
+                simplified_static += 1
     # Ring lights, animated gate ornaments and waterfall ribbons need no
     # rendering when their entire landmark is outside the flight working set.
     for gate in gates:
