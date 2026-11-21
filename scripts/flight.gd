@@ -1,6 +1,7 @@
 extends Node3D
 
 const MeshFactory = preload("res://scripts/mesh_factory.gd")
+const FORGED_SHADER = preload("res://shaders/forged_metal.gdshader")
 
 const SkiffArtScript = preload("res://scripts/skiff_art.gd")
 const ThrusterFXScript = preload("res://scripts/thruster_fx.gd")
@@ -18,16 +19,16 @@ var plume_left: MeshInstance3D
 var plume_right: MeshInstance3D
 var ion_wake
 
-var hull_mat: StandardMaterial3D
-var armor_mat: StandardMaterial3D
+var hull_mat: Material
+var armor_mat: Material
 var canopy_mat: StandardMaterial3D
 var trim_mat: StandardMaterial3D
 var thruster_mat: StandardMaterial3D
 
 
 func _ready() -> void:
-    hull_mat = _material(Color("#2d3a48"), 0.34, 0.53)
-    armor_mat = _material(Color("#7e989e"), 0.25, 0.68)
+    hull_mat = _forged(Color("#304352"), 0.64, 0.33)
+    armor_mat = _forged(Color("#7e99a2"), 0.78, 0.23)
     canopy_mat = _material(Color("#133547"), 0.10, 0.47)
     trim_mat = _emissive(Color(0.17, 0.96, 0.92), 3.1)
     thruster_mat = _emissive(Color(1.0, 0.49, 0.22), 3.8)
@@ -50,6 +51,17 @@ func _ready() -> void:
     get_parent().add_child(chase_camera)
     chase_camera.global_position = global_position + Vector3(0.0, 4.0, 10.4)
     chase_camera.look_at(global_position + Vector3(0.0, 1.0, -12.0), Vector3.UP)
+
+
+func _forged(tint: Color, metal: float, rough: float) -> ShaderMaterial:
+    var result := ShaderMaterial.new()
+    result.shader = FORGED_SHADER
+    result.set_shader_parameter("paint_color", tint)
+    result.set_shader_parameter("exposed_metal", tint.lightened(0.32))
+    result.set_shader_parameter("metalness", metal)
+    result.set_shader_parameter("roughness_base", rough)
+    result.set_shader_parameter("wear", 0.18)
+    return result
 
 
 func _material(color: Color, roughness: float, metallic: float) -> StandardMaterial3D:
@@ -175,8 +187,9 @@ func _surface(vertices: Array[Vector3], material: Material) -> void:
     for vertex in vertices:
         tool.add_vertex(vertex)
     tool.generate_normals()
-    var surf_material := material.duplicate() as StandardMaterial3D
-    surf_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+    var surf_material := material.duplicate() as Material
+    if surf_material is BaseMaterial3D:
+        (surf_material as BaseMaterial3D).cull_mode = BaseMaterial3D.CULL_DISABLED
     _mesh(tool.commit(), Vector3.ZERO, surf_material)
 
 
