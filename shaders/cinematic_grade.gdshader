@@ -6,7 +6,11 @@ uniform float corner_strength : hint_range(0.0, 1.0) = 0.35;
 uniform float grain_strength : hint_range(0.0, 0.06) = 0.012;
 
 float rand(vec2 v) {
-    return fract(sin(dot(v, vec2(12.9898, 78.233))) * 43758.5453);
+    // Integer-ish arithmetic noise; avoids a transcendental sine for
+    // every full-resolution film-grain fragment on Android.
+    vec3 p = fract(vec3(v.xyx) * vec3(0.1031, 0.1030, 0.0973));
+    p += dot(p, p.yzx + 19.19);
+    return fract((p.x + p.y) * p.z);
 }
 
 void fragment() {
