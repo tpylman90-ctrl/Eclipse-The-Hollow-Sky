@@ -31,15 +31,17 @@ Get-ChildItem -LiteralPath $androidDir -Recurse -File -Filter "*.cs" | Remove-It
 Copy-Item (Join-Path $root "source/MainScene.sdscene") (Join-Path $assetsDir "MainScene.sdscene") -Force
 Copy-Item (Join-Path $root "source/EclipseBridge.cs") (Join-Path $gameDir "EclipseBridge.cs") -Force
 Copy-Item (Join-Path $root "source/EclipseDirector.cs") (Join-Path $gameDir "EclipseDirector.cs") -Force
+Copy-Item (Join-Path $root "source/EclipseGeometry.cs") (Join-Path $gameDir "EclipseGeometry.cs") -Force
 Copy-Item (Join-Path $root "source/EclipseActivity.cs") (Join-Path $androidDir "EclipseActivity.cs") -Force
 Copy-Item (Join-Path $root "source/FlightHud.cs") (Join-Path $androidDir "FlightHud.cs") -Force
 
-# Engine patch version matches the proven working Stride 4.4.3 Android build.
+# Pin the actual working bootstrap version consistently: Stride 4.4.4.
+# v2 previously installed 4.4.4 then only rewrote old 4.4.0-4.4.2 references.
 Get-ChildItem -Path $project -Recurse -File |
     Where-Object { $_.Extension -in @(".csproj", ".props", ".targets") } |
     ForEach-Object {
         $old = [System.IO.File]::ReadAllText($_.FullName)
-        $new = [regex]::Replace($old, '4\.4\.[012]', '4.4.3')
+        $new = [regex]::Replace($old, '4\.4\.\d+', '4.4.4')
         if ($new -cne $old) { [System.IO.File]::WriteAllText($_.FullName, $new) }
     }
 
@@ -85,7 +87,7 @@ Write-Host "Verified Eclipse default scene: $sceneGuid"
 $androidProject = Join-Path $androidDir "StrideGraphicsTest.Android.csproj"
 $xml = [System.IO.File]::ReadAllText($androidProject)
 $xml = [regex]::Replace($xml, '<ApplicationId>[^<]+</ApplicationId>',
-    '<ApplicationId>com.neonfoundry.eclipse.stride.game.v2</ApplicationId>')
+    '<ApplicationId>com.neonfoundry.eclipse.stride.game.v3</ApplicationId>')
 $xml = $xml.Replace("<AndroidApplicationIcon>@mipmap/appicon</AndroidApplicationIcon>",
     "<AndroidApplicationIcon>@mipmap/appicon</AndroidApplicationIcon>`n" +
     "<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>`n" +
@@ -99,7 +101,7 @@ if ((Get-ChildItem $assetsDir -Recurse -File | Where-Object {
 if (-not (Select-String -Path (Join-Path $assetsDir "MainScene.sdscene") -Pattern "EclipseDirector" -Quiet)) {
     throw "Eclipse game director missing from scene"
 }
-if ((Get-ChildItem $gameDir -Recurse -File -Filter "*.cs").Count -ne 2) {
+if ((Get-ChildItem $gameDir -Recurse -File -Filter "*.cs").Count -ne 3) {
     throw "Incorrect game scripts: FPS scripts may remain"
 }
 
@@ -145,5 +147,5 @@ try {
     Write-Host "Verified original Eclipse game APK: $($apk.Length) bytes; $($entries.Count) ZIP entries"
 }
 finally { $zip.Dispose() }
-Copy-Item $apk.FullName (Join-Path $artifact "Eclipse-The-Hollow-Sky-Stride-v2.apk") -Force
+Copy-Item $apk.FullName (Join-Path $artifact "Eclipse-The-Hollow-Sky-Stride-v3.apk") -Force
 Write-Host "Eclipse Android game APK ready."
