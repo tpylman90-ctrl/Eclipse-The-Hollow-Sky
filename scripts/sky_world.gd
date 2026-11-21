@@ -141,32 +141,63 @@ func _build_course() -> void:
 
 
 func _make_island(pos: Vector3, radius: float, rng: RandomNumberGenerator, temple: bool) -> void:
+    # Sculpted five-band silhouette: broken lip, cliff fractures, tapered stone root.
+    # Replaces the original low-sided cone while keeping a single mesh/draw call per island.
     var root := Node3D.new()
     root.position = pos
     add_child(root)
     var surface := SurfaceTool.new()
     surface.begin(Mesh.PRIMITIVE_TRIANGLES)
     surface.set_smooth_group(-1)
-    var sections := 12
-    var outer: Array[Vector3] = []
-    var lower: Array[Vector3] = []
+    var sections := 28 if radius >= 18.0 else 17
+    var bands: Array[Array] = []
+    for ring_index in range(5):
+        var band: Array[Vector3] = []
+        for n in range(sections):
+            var a: float = TAU * float(n) / float(sections)
+            var jag: float = 1.0 + sin(a * 5.0 + pos.x * 0.11) * 0.068 + cos(a * 11.0 + pos.z * 0.07) * 0.037
+            var variance: float = rng.randf_range(0.91, 1.08)
+            var contour: float = radius * jag * variance
+            var factor: float = 0.46
+            var height: float = 0.7
+            match ring_index:
+                0:
+                    factor = 0.45
+                    height = 1.3 + rng.randf_range(-0.52, 0.75)
+                1:
+                    factor = 1.0
+                    height = rng.randf_range(-0.8, 1.1)
+                2:
+                    factor = rng.randf_range(0.88, 1.07)
+                    height = -radius * rng.randf_range(0.24, 0.40)
+                3:
+                    factor = rng.randf_range(0.51, 0.73)
+                    height = -radius * rng.randf_range(0.73, 0.94)
+                4:
+                    factor = rng.randf_range(0.19, 0.33)
+                    height = -radius * rng.randf_range(1.19, 1.33)
+            band.append(Vector3(cos(a) * contour * factor, height, sin(a) * contour * factor))
+        bands.append(band)
+    var top_center := Vector3(0.0, 1.22, 0.0)
+    var bottom := Vector3(rng.randf_range(-1.5, 1.5), -radius * 1.56, rng.randf_range(-1.5, 1.5))
     for n in range(sections):
-        var a := TAU * float(n) / float(sections)
-        var r := radius * rng.randf_range(0.79, 1.08)
-        var h := rng.randf_range(-1.7, 1.1) * radius / 30.0
-        outer.append(Vector3(cos(a) * r, h, sin(a) * r))
-        lower.append(Vector3(cos(a) * r * rng.randf_range(0.44, 0.73), -radius * rng.randf_range(0.54, 0.77), sin(a) * r * rng.randf_range(0.44, 0.73)))
-    var bottom := Vector3(rng.randf_range(-2.0, 2.0), -radius * 1.62, rng.randf_range(-2.0, 2.0))
-    for n in range(sections):
-        var next := (n + 1) % sections
-        _triangle(surface, Vector3(0.0, 0.8, 0.0), outer[next], outer[n], Color(0.37, 0.44, 0.46))
-        _triangle(surface, outer[n], outer[next], lower[next], Color(0.20, 0.28, 0.35))
-        _triangle(surface, outer[n], lower[next], lower[n], Color(0.16, 0.21, 0.31))
-        _triangle(surface, lower[n], lower[next], bottom, Color(0.075, 0.105, 0.17))
+        var nxt := (n + 1) % sections
+        _triangle(surface, top_center, bands[0][nxt], bands[0][n], Color(0.57, 0.61, 0.61))
+        for j in range(4):
+            var a: Vector3 = bands[j][n]
+            var b: Vector3 = bands[j][nxt]
+            var d: Vector3 = bands[j + 1][n]
+            var e: Vector3 = bands[j + 1][nxt]
+            var shade: float = 0.52 - float(j) * 0.085
+            var tint := Color(shade * 0.90, shade, shade * 1.09)
+            _triangle(surface, a, b, e, tint)
+            _triangle(surface, a, e, d, tint)
+        _triangle(surface, bands[4][n], bands[4][nxt], bottom, Color(0.12, 0.18, 0.25))
     surface.generate_normals()
     var rock := MeshInstance3D.new()
     rock.mesh = surface.commit()
     rock.material_override = rock_material
+    rock.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
     root.add_child(rock)
     if temple and radius > 20.0:
         _make_temple(root, radius, rng)
