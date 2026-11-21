@@ -87,7 +87,14 @@ func _make_atmosphere() -> void:
     environment.fog_density = 0.0015
     environment.fog_sky_affect = 0.14
     environment.glow_enabled = true
-    environment.glow_intensity = 0.35
+    environment.glow_intensity = 0.57
+    environment.glow_bloom = 0.09
+    environment.glow_hdr_threshold = 0.84
+    environment.glow_hdr_scale = 1.75
+    environment.tonemap_exposure = 1.07
+    environment.adjustment_enabled = true
+    environment.adjustment_contrast = 1.08
+    environment.adjustment_saturation = 1.07
     var world_env := WorldEnvironment.new()
     world_env.environment = environment
     add_child(world_env)
@@ -96,6 +103,10 @@ func _make_atmosphere() -> void:
     sun.light_color = Color("#ffcb93")
     sun.light_energy = 1.63
     sun.shadow_enabled = true
+    sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+    sun.directional_shadow_max_distance = 165.0
+    sun.directional_shadow_blend_splits = true
+    sun.shadow_blur = 1.35
     add_child(sun)
     var fill := DirectionalLight3D.new()
     fill.rotation_degrees = Vector3(-8.0, 134.0, 0.0)
@@ -197,7 +208,7 @@ func _make_island(pos: Vector3, radius: float, rng: RandomNumberGenerator, templ
     var rock := MeshInstance3D.new()
     rock.mesh = surface.commit()
     rock.material_override = rock_material
-    rock.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    rock.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
     root.add_child(rock)
     if temple and radius > 20.0:
         _make_temple(root, radius, rng)
