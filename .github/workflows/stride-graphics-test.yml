@@ -1,0 +1,49 @@
+name: Stride Android Graphics Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/stride-graphics-test.yml'
+      - 'experiments/stride-graphics-test/**'
+
+permissions:
+  contents: read
+
+jobs:
+  android-graphics-smoke:
+    name: Stride 4.4.3 / Android sample APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out Eclipse repository
+        uses: actions/checkout@v4
+
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Prepare Java for Android
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android workload
+        run: dotnet workload install android
+
+      - name: Create Stride scene and build a debug APK
+        run: bash experiments/stride-graphics-test/build.sh
+
+      - name: Upload APK and generated source
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stride-android-graphics-test
+          path: experiments/stride-graphics-test/.generated/artifacts/
+          if-no-files-found: warn
+          retention-days: 7
