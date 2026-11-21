@@ -6,6 +6,7 @@ const JoystickScript = preload("res://scripts/virtual_joystick.gd")
 signal start_requested
 signal restart_requested
 signal graphics_preset_requested
+signal benchmark_requested
 signal upgrade_requested(kind: String)
 signal hangar_requested
 
@@ -20,6 +21,8 @@ var clock_label: Label
 var speed_label: Label
 var energy_label: Label
 var perf_button: Button
+var bench_button: Button
+var diagnostic_label: Label
 var result_title: Label
 var result_detail: Label
 var message_label: Label
@@ -226,6 +229,30 @@ func _build_hud() -> void:
     perf_button.add_theme_font_size_override("font_size", 14)
     perf_button.pressed.connect(func(): graphics_preset_requested.emit())
     hud.add_child(perf_button)
+    bench_button = _button("BENCH: VSYNC")
+    bench_button.anchor_left = 0.5
+    bench_button.anchor_right = 0.5
+    bench_button.anchor_top = 1.0
+    bench_button.anchor_bottom = 1.0
+    bench_button.offset_left = -95.0
+    bench_button.offset_right = 95.0
+    bench_button.offset_top = -102.0
+    bench_button.offset_bottom = -62.0
+    bench_button.custom_minimum_size = Vector2.ZERO
+    bench_button.add_theme_font_size_override("font_size", 13)
+    bench_button.pressed.connect(func(): benchmark_requested.emit())
+    hud.add_child(bench_button)
+    diagnostic_label = _label("CPU -- ms   •   --/-- static   •   -- Hz", 12, AQUA, HORIZONTAL_ALIGNMENT_CENTER)
+    diagnostic_label.anchor_left = 0.5
+    diagnostic_label.anchor_right = 0.5
+    diagnostic_label.anchor_top = 1.0
+    diagnostic_label.anchor_bottom = 1.0
+    diagnostic_label.offset_left = -270.0
+    diagnostic_label.offset_right = 270.0
+    diagnostic_label.offset_top = -136.0
+    diagnostic_label.offset_bottom = -109.0
+    diagnostic_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    hud.add_child(diagnostic_label)
     combat_label = _label("DRONES 0  •  KILLS 0  •  COMBO x1", 18, AQUA)
     combat_label.position = Vector2(25.0, 111.0)
     hud.add_child(combat_label)
@@ -347,10 +374,21 @@ func update_status(signals: int, total: int, shield: int, time_left: float, spee
     message_label.text = hint
 
 
-func update_graphics_hud(preset: String, fps: int, draws: int) -> void:
+func update_graphics_hud(
+    preset: String, fps: int, draws: int, cpu_ms: float, physics_ms: float,
+    visible_meshes: int, total_meshes: int, refresh_hz: float, renderer: String
+) -> void:
     if perf_button == null:
         return
     perf_button.text = "%s  %d FPS  %d DC" % [preset, fps, draws]
+    if diagnostic_label != null:
+        diagnostic_label.text = "CPU %.1fms  PHYS %.1fms  •  %d/%d static  •  %dHz  %s" % [
+            cpu_ms, physics_ms, visible_meshes, total_meshes, int(maxf(refresh_hz, 0.0)), renderer]
+
+
+func update_benchmark(enabled: bool) -> void:
+    if bench_button != null:
+        bench_button.text = "BENCH: UNLOCKED" if enabled else "BENCH: VSYNC"
 
 
 func update_combat_hud(sector: int, alive: int, destroyed: int, combo: int, mission: String) -> void:
