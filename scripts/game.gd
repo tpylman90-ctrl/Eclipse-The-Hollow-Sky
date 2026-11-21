@@ -214,6 +214,9 @@ func _process(delta: float) -> void:
             Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0,
             render_budget.visible_static,
             render_budget.total_static,
+            render_budget.active_shadow_casters,
+            render_budget.shadow_candidates,
+            render_budget.camera_obstructions_hidden,
             DisplayServer.screen_get_refresh_rate(),
             RenderingServer.get_current_rendering_method())
     combat.update_combat(delta)
