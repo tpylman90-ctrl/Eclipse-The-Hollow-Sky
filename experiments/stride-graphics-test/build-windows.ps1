@@ -61,7 +61,34 @@ moveDirection += touchMove;
                 var worldSpeed = (Camera != null)
 '@
 $playerSource = $playerSource.Replace($moveAnchor, $moveSnippet.TrimEnd())
+# Display an approximate CPU update tick rate, not GPU frame timing.
+$fpsAnchor = 'MobileTouchState.Read(out var touchMove, out var touchLook, out var touchFire, out var touchReload);'
+$fpsCode = @'
+            float elapsed = (float)Game.UpdateTime.Elapsed.TotalSeconds;
+            if (elapsed > 0.0001f)
+                MobileTouchState.SetUpdateFps(1.0f / elapsed);
+'@
+if (-not $playerSource.Contains($fpsAnchor)) { throw "Missing mobile input read point" }
+$playerSource = $playerSource.Replace($fpsAnchor, $fpsAnchor + "`n" + $fpsCode.TrimEnd())
 [System.IO.File]::WriteAllText($playerInputFile, $playerSource)
+
+# Keep the original FPS arena; attach one additive PBR showcase script
+# to PlayerCharacter so it initializes after the stock scene is loaded.
+$trialDir = Join-Path $gameDir "GraphicsTrial"
+New-Item -ItemType Directory -Force -Path $trialDir | Out-Null
+Copy-Item -Path (Join-Path $root "payload/GraphicsShowcase.cs") -Destination (Join-Path $trialDir "GraphicsShowcase.cs") -Force
+$sceneAsset = Join-Path $project "Assets/MainScene.sdscene"
+$sceneText = [System.IO.File]::ReadAllText($sceneAsset)
+$playerAnchor = "                            05744cc71fc6762cd1820202d01398ed: R"
+if (-not $sceneText.Contains($playerAnchor)) { throw "Stride FPS PlayerCharacter layout changed" }
+$trialComponent = @'
+                    a5c40bb1f2f74618b6fc642acf83a0de: !StrideGraphicsTest.GraphicsTrial.GraphicsShowcase,StrideGraphicsTest.Game
+                        Id: A5C40BB1-F2F7-4618-B6FC-642ACF83A0DE
+'@
+$sceneText = $sceneText.Replace($playerAnchor, $playerAnchor + "`r`n" + $trialComponent.TrimEnd())
+[System.IO.File]::WriteAllText($sceneAsset, $sceneText)
+Write-Host "Added isolated PBR vehicle plus material-gallery graphics trial."
+
 Write-Host "Mobile touchscreen movement, camera, fire, and reload wired to original player controller."
 
 $diagnosticsSource = Join-Path $root "payload/GraphicsPreflightActivity.cs"
@@ -73,7 +100,7 @@ $androidProject = Join-Path $androidDirectory "$name.Android.csproj"
 $androidProjectContent = [System.IO.File]::ReadAllText($androidProject)
 $androidProjectContent = $androidProjectContent.Replace(
   "<ApplicationId>StrideGraphicsTest</ApplicationId>",
-  "<ApplicationId>com.neonfoundry.stride.graphicsdiagnostic.v3</ApplicationId>")
+  "<ApplicationId>com.neonfoundry.stride.graphicsdiagnostic.v4</ApplicationId>")
 # Critical for sideloading a .NET Android Debug APK: fast deployment defaults
 # to ON and places managed assemblies on the development machine instead
 # of inside the APK. GitHub-created APKs must be self-contained.
