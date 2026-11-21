@@ -337,13 +337,13 @@ func show_result(victory: bool, score: int, signals: int) -> void:
         Input.action_release(action)
 
 
-func update_status(signals: int, total: int, shield: int, time_left: float, speed: float, energy: float, hint: String) -> void:
+func update_status(signals: int, total: int, shield: int, time_left: float, speed: float, energy: float, hint: String, maximum_shield: int = 3) -> void:
     gate_label.text = "SIGNAL %02d / %02d" % [mini(signals + 1, total), total]
-    shield_label.text = "HULL   " + "◈".repeat(maxi(0, shield)) + "◇".repeat(maxi(0, 3 - shield))
+    shield_label.text = "HULL   " + "◈".repeat(maxi(0, shield)) + "◇".repeat(maxi(0, maximum_shield - shield))
     var secs := maxi(0, int(ceilf(time_left)))
     clock_label.text = "TIME  %02d:%02d" % [secs / 60, secs % 60]
     speed_label.text = "%03d M/S" % int(speed)
-    energy_label.text = "BOOST  " + "█".repeat(clampi(int(energy / 10.0), 0, 10)) + "░".repeat(clampi(10 - int(energy / 10.0), 0, 10))
+    energy_label.text = "BOOST  " + "█".repeat(clampi(int(energy / float(100.0 + 30.0 * int(upgrade_levels.get("reactor", 0))) * 10.0), 0, 10)) + "░".repeat(clampi(10 - int(energy / float(100.0 + 30.0 * int(upgrade_levels.get("reactor", 0))) * 10.0), 0, 10))
     message_label.text = hint
 
 
