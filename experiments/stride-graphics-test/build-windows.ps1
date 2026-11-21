@@ -75,22 +75,33 @@ if ($projects.Count -ne 1) {
   Get-ChildItem -Path $project -Recurse -Filter "*.csproj" | Select-Object -ExpandProperty FullName
   throw "Expected one Android project; found $($projects.Count)"
 }
-Write-Host "Stage 1: Compile Android assembly without Stride asset processing"
-dotnet build $projects[0].FullName -c Debug -p:StrideCompilerSkipBuild=true -p:AndroidPackageFormat=apk -p:EmbedAssembliesIntoApk=true --nologo
+Write-Host "Stage 1: Compile Release Android assembly without Stride asset processing"
+dotnet build $projects[0].FullName -c Release -p:StrideCompilerSkipBuild=true -p:AndroidPackageFormat=apk -p:EmbedAssembliesIntoApk=true -p:AndroidUseAssemblyStore=true -p:RunAOTCompilation=false -p:PublishTrimmed=false --nologo
 if ($LASTEXITCODE -ne 0) { throw "Stage 1 Android assembly compilation failed" }
 
-$targetAssembly = Join-Path $project "Bin/Android/Debug/$name.Android.dll"
+$targetAssembly = Join-Path $project "Bin/Android/Release/$name.Android.dll"
 Write-Host "Stage 1 Android assembly exists: $(Test-Path $targetAssembly)"
 if (Test-Path $targetAssembly) {
   Get-Item $targetAssembly | Select-Object FullName, Length | Format-List
 }
 
-Write-Host "Stage 2: Compile full Stride assets and Android APK"
-dotnet build $projects[0].FullName -c Debug -p:AndroidPackageFormat=apk -p:EmbedAssembliesIntoApk=true -p:StrideBuildEngineLogVerbose=true --nologo
+Write-Host "Stage 2: Compile full Stride assets and self-contained Release Android APK"
+dotnet build $projects[0].FullName -c Release -p:AndroidPackageFormat=apk -p:EmbedAssembliesIntoApk=true -p:AndroidUseAssemblyStore=true -p:RunAOTCompilation=false -p:PublishTrimmed=false -p:StrideBuildEngineLogVerbose=true --nologo
 if ($LASTEXITCODE -ne 0) { throw "Stage 2 Stride Android asset build failed; check above logs" }
 
-$apks = @(Get-ChildItem -Path $project -Recurse -Filter "*.apk" -File)
-if ($apks.Count -eq 0) { throw "Build completed, but no APK was produced" }
+Write-Host "Stage 3: Sign and verify standalone Release APK"
+dotnet build $projects[0].FullName -c Release -t:SignAndroidPackage -p:AndroidPackageFormat=apk -p:EmbedAssembliesIntoApk=true -p:AndroidUseAssemblyStore=true -p:RunAOTCompilation=false -p:PublishTrimmed=false --nologo
+if ($LASTEXITCODE -ne 0) { throw "Release signing failed" }
+
+$apks = @(Get-ChildItem -Path $project -Recurse -Filter "*-Signed.apk" -File)
+if ($apks.Count -eq 0) { throw "Release signing completed, but no signed APK was produced" }
+# Retain a distinctly named diagnostic copy even on verification failure.
+# Do not present it as a working installable APK unless the checks pass.
+$diagnosticDir = Join-Path $out "diagnostics"
+New-Item -ItemType Directory -Force -Path $diagnosticDir | Out-Null
+foreach ($apk in $apks) {
+  Copy-Item -Path $apk.FullName -Destination (Join-Path $diagnosticDir "UNVERIFIED-$($apk.Name)") -Force
+}
 # Verify that this really can be installed by hand. Older builds were
 # successful in CI but contained NO managed assembly store, causing a crash
 # before the native diagnostic screen rendered.
