@@ -1,34 +1,23 @@
-# Stride Android graphics smoke test (isolated)
+# Stride Android graphics test — isolated from Eclipse
 
-This experiment is **not part of Eclipse: The Hollow Sky**. The existing Godot project at the repository root remains the game. Do not merge these graphics experiments into the Godot runtime.
+The main repository is still the **Eclipse: The Hollow Sky** Godot game. This directory and its dedicated GitHub Actions workflow are an independent engine experiment. No edits are made to root `project.godot`, game assets, scenes, scripts or original workflows.
 
 ## Goal
+Verify that Stride can generate, compile and package an actual 3D Android starter scene **using only GitHub**, without Unity licensing, a PC, or Kaggle GPU time.
 
-Find out whether **Stride 4.4.3** can generate, compile, and package a real 3D scene for Android **entirely in GitHub Actions**, without purchasing a Unity license or using Kaggle GPU training time.
+## Current baseline
+- Stride **first-person-shooter starter template 4.4.4**, with Stride engine package references brought up to the **4.4.3** maintenance release.
+- The template's default scene, camera, graphics profile, materials and lighting; no fabricated benchmarks or custom PBR showcase yet.
+- Android **debug APK**, produced by .NET 10 Android tooling when build succeeds.
+- **Windows GitHub-hosted runner** for Android builds. An Ubuntu runner was trialed first; the Stride asset compiler's internal NuGet restore could not validate old dependency signing certificates. Package signature checking was **not disabled**.
+- The test scene is generated at build time under `.generated/StrideGraphicsTest/` from the upstream MIT-licensed starter, and saved as `stride-source.zip` for inspection.
 
-First pass: the upstream **Stride FPS starter** scene, in landscape mode with graphics profile 10.0. It is an initial 3D renderer and packaging smoke test, **not** a calibrated graphics-quality comparison with Godot. It exercises the starter's scene, camera, geometry, materials, and lighting. The source is generated from the official MIT-licensed template and uploaded as a build artifact.
+## Use
+1. Go to the **Actions** tab in this repository and open **Stride Android Graphics Smoke**.
+2. Choose **Run workflow** on `main`, or inspect the push-triggered run.
+3. Download **stride-android-graphics-test** under Artifacts. Successful runs contain the APK and a source ZIP; failed builds may contain source only.
+4. Install the APK if present and open on your Android phone. Capture a screenshot and report rendering anomalies, crash behavior and perceived smoothness. Runtime FPS/compatibility cannot be certified by GitHub compilation alone.
 
-## Run
+This is a **minimal rendering and packaging smoke test**, not yet a proper apples-to-apples comparison with Godot 4.5. Device benchmarks and a richer original PBR scene can follow after Android build and launch are verified.
 
-1. Open **Actions** > **Stride Android Graphics Smoke** > **Run workflow**.
-2. Select the default `main` branch.
-3. When complete, open the workflow run and download the `stride-android-graphics-test` artifact. It should contain an APK and the generated starter source (ZIP) if build succeeds.
-4. Install the APK on an Android device, launch it, and note whether 3D geometry is visible, rendering artifacts/crashes, and approximate FPS/device heating. Return screenshots to compare with an equivalent Godot scene.
-
-Automatic runs also occur when this isolated test's workflow, script, or README changes. Standard hosted GitHub Actions runners are used; no Kaggle GPU quota is requested.
-
-## What the CI verifies
-
-- Installs .NET 10, the Android workload, and the pinned Stride template.
-- Creates a separate Stride Android FPS sample using official CLI templates.
-- Builds a **debug Android APK** (debug signing is expected from the .NET Android tooling).
-- Collects APKs and uploads the generated Stride source for review.
-
-A successful CI build does **not** prove Vulkan 1.3 device compatibility, runtime stability, visual quality, or 60 FPS. Those require installing on the actual phone. If the Android toolchain/packaging fails, the workflow logs identify the step to fix.
-
-## Safety and isolation
-
-- All generated Stride files stay under `experiments/stride-graphics-test/.generated/` (ignored by Git for local runs); there are no edits to root `project.godot`, `scenes/`, `scripts/`, or game workflows.
-- Uses free, publicly available Stride templates and SDK packages.
-- No production game assets, release signing credentials, or GPU training workloads.
-- No claims of a verified APK until the GitHub Actions run completes successfully.
+If building reports known-vulnerable transitive NuGet dependencies, treat the APK as an isolated developer test, not a production or distributable game release. Do not change package-signature validation settings to bypass certificate errors.
