@@ -9,7 +9,7 @@ const WorldScript = preload("res://scripts/sky_world.gd")
 const ArtScript = preload("res://scripts/art_direction.gd")
 const OUTPUT_DIR := "res://generated"
 const CHUNK_METERS := 165.0
-const BATCH_THRESHOLD := 3
+const BATCH_THRESHOLD := 2
 
 var error_count := 0
 
@@ -99,6 +99,10 @@ func _batch_static(stage: Node3D, protect_gate_children: bool) -> Dictionary:
         groups[key]["members"].append(item)
 
     var old_count := renderables.size()
+    var shadows_before := 0
+    for item in renderables:
+        if item.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+            shadows_before += 1
     var merged_count := 0
     var resulting_batches := 0
     var batch_holder := Node3D.new()
@@ -132,8 +136,16 @@ func _batch_static(stage: Node3D, protect_gate_children: bool) -> Dictionary:
             (item as MeshInstance3D).free()
         resulting_batches += 1
         merged_count += items.size()
-    # Every 3+ merged source renderables become exactly one draw unit.
+    # Even a two-mesh material batch is worthwhile for this short course.
+    var shadows_after := 0
+    var remaining: Array[MeshInstance3D] = []
+    _collect_meshes(stage, remaining, protect_gate_children)
+    for item in remaining:
+        if item.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_ON:
+            shadows_after += 1
     return {
+        "shadow_casters_before": shadows_before,
+        "shadow_casters_after": shadows_after,
         "initial_meshes": old_count,
         "merged_meshes": merged_count,
         "static_batches": resulting_batches,
