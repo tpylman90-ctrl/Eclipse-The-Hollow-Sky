@@ -11,11 +11,27 @@ if [ -e "$OUT/$NAME" ]; then
   exit 2
 fi
 
-dotnet new install Stride.Templates.Games.Starters@4.4.3
+dotnet new install Stride.Templates.Games.Starters@4.4.4
 # The FPS starter's published template only exposes --platforms here;
 # graphics-profile/orientation parameters from the generic template docs are
 # not accepted by this particular package version (verified in Actions).
 dotnet new stride-fps -n "$NAME" -o "$OUT/$NAME" --platforms android
+
+# The published starter pins older 4.4.0 packages. Bring engine + asset
+# compiler references to the 4.4.3 maintenance release before restoring.
+while IFS= read -r -d '' file; do
+  if grep -q '4.4.0' "$file"; then
+    sed -i 's/4\\.4\\.0/4.4.3/g' "$file"
+  fi
+done < <(find "$OUT/$NAME" -type f \\( -name '*.csproj' -o -name '*.props' -o -name '*.targets' \\) -print0)
+
+mkdir -p "$OUT/artifacts"
+# Save the generated project even if Android asset compilation fails.
+(
+  cd "$OUT"
+  zip -qr "artifacts/stride-source.zip" "$NAME" \\
+    -x '*/bin/*' '*/obj/*' '*/.vs/*' '*/.git/*'
+)
 
 # Prefer the standard .Android.csproj suffix from Stride; fail explicitly if
 # future templates change their project naming instead of silently building nothing.
