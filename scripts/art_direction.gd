@@ -2,7 +2,7 @@ extends Node3D
 ## Art-pass 02: a cinematic architectural layer, entirely generated from reusable meshes.
 ## Designed for the Godot 4 Compatibility renderer and a midrange/entry-level Android GPU.
 
-var world: Node3D
+var world
 var basalt: StandardMaterial3D
 var cut_stone: StandardMaterial3D
 var polished_stone: StandardMaterial3D
