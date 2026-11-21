@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   android-game:
-    name: Eclipse - Hollow Sky / Stride Android v1
+    name: Eclipse - Hollow Sky / Stride Android v3
     runs-on: windows-2022
     timeout-minutes: 85
     steps:
@@ -56,7 +56,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: eclipse-hollow-sky-stride-android
+          name: eclipse-hollow-sky-stride-v3-android
           path: experiments/eclipse-stride/.generated/artifacts/
           if-no-files-found: warn
           retention-days: 14
