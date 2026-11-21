@@ -1,4 +1,6 @@
 extends Node3D
+
+const MeshFactory = preload("res://scripts/mesh_factory.gd")
 ## Art pass 02 - layered metallic hull, aviation panelization, glass canopy ribs.
 ## This is all original hard-surface geometry, built into the parent skiff at runtime.
 
@@ -55,9 +57,8 @@ func _mesh(m: Mesh, pos: Vector3, material: Material) -> MeshInstance3D:
 
 
 func _box(size: Vector3, pos: Vector3, mat: Material) -> MeshInstance3D:
-    var shape := BoxMesh.new()
-    shape.size = size
-    return _mesh(shape, pos, mat)
+    var bevel: float = minf(0.14, minf(size.x, minf(size.y, size.z)) * 0.20)
+    return _mesh(MeshFactory.bevel_box(size, bevel), pos, mat)
 
 
 func _beam(a: Vector3, b: Vector3, width: float, material: Material) -> MeshInstance3D:
