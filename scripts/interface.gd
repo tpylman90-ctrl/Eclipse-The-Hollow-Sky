@@ -1,9 +1,13 @@
 extends CanvasLayer
+
+const JoystickScript = preload("res://scripts/virtual_joystick.gd")
 ## Entire interface is native Godot Control nodes (no third-party fonts or sprites).
 
 signal start_requested
 signal restart_requested
 signal graphics_preset_requested
+signal upgrade_requested(kind: String)
+signal hangar_requested
 
 var root: Control
 var menu: Control
@@ -19,6 +23,14 @@ var perf_button: Button
 var result_title: Label
 var result_detail: Label
 var message_label: Label
+var combat_label: Label
+var mission_label: Label
+var hangar_balance: Label
+var hull_upgrade_button: Button
+var weapon_upgrade_button: Button
+var reactor_upgrade_button: Button
+var upgrade_levels := {"hull": 0, "weapon": 0, "reactor": 0}
+var joystick
 
 const WHITE := Color(0.95, 0.97, 0.98)
 const AQUA := Color(0.30, 1.0, 0.91)
@@ -191,6 +203,22 @@ func _build_hud() -> void:
     perf_button.add_theme_font_size_override("font_size", 14)
     perf_button.pressed.connect(func(): graphics_preset_requested.emit())
     hud.add_child(perf_button)
+    combat_label = _label("DRONES 0  •  KILLS 0  •  COMBO x1", 18, AQUA)
+    combat_label.position = Vector2(25.0, 111.0)
+    hud.add_child(combat_label)
+    mission_label = _label("SECTOR 1: SIGNAL HUNT", 16, GOLD)
+    mission_label.position = Vector2(26.0, 139.0)
+    hud.add_child(mission_label)
+    var crosshair := _label("⊕", 36, Color(0.44, 1.0, 0.92, 0.69), HORIZONTAL_ALIGNMENT_CENTER)
+    crosshair.anchor_left = 0.5
+    crosshair.anchor_right = 0.5
+    crosshair.anchor_top = 0.47
+    crosshair.anchor_bottom = 0.47
+    crosshair.offset_left = -24.0
+    crosshair.offset_right = 24.0
+    crosshair.offset_top = -24.0
+    crosshair.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    hud.add_child(crosshair)
     _build_touch()
 
 
@@ -199,18 +227,25 @@ func _build_touch() -> void:
     _fill(touch_layer)
     hud.add_child(touch_layer)
     touch_layer.visible = OS.has_feature("mobile") or DisplayServer.is_touchscreen_available()
-    # Four fully separated 88x88 touch targets in a classic D-pad.
-    # Horizontal / vertical gaps are at least 8 screen pixels.
-    _touch_button("▲", "steer_up", 0.0, 114.0, -219.0, 88.0, 88.0)
-    _touch_button("◀", "steer_left", 0.0, 18.0, -123.0, 88.0, 88.0)
-    _touch_button("▼", "steer_down", 0.0, 114.0, -123.0, 88.0, 88.0)
-    _touch_button("▶", "steer_right", 0.0, 210.0, -123.0, 88.0, 88.0)
+    joystick = JoystickScript.new()
+    joystick.name = "AnalogFlightStick"
+    joystick.anchor_left = 0.0
+    joystick.anchor_right = 0.0
+    joystick.anchor_top = 1.0
+    joystick.anchor_bottom = 1.0
+    joystick.offset_left = 25.0
+    joystick.offset_right = 251.0
+    joystick.offset_top = -247.0
+    joystick.offset_bottom = -21.0
+    touch_layer.add_child(joystick)
+    # Right thumb has three independent fire/boost/brake touch zones.
+    _touch_button("FIRE", "fire", 1.0, -164.0, -229.0, 137.0, 83.0)
     _touch_button("BRAKE", "brake", 1.0, -296.0, -104.0, 112.0, 73.0)
     _touch_button("BOOST", "boost", 1.0, -162.0, -125.0, 135.0, 73.0)
 
 
 func _touch_button(caption: String, action: String, horizontal_anchor: float, offset_x: float, offset_y: float, size_x: float, size_y: float) -> void:
-    var btn := _button(caption, action == "boost")
+    var btn := _button(caption, action == "boost" or action == "fire")
     btn.add_theme_font_size_override("font_size", 18)
     btn.anchor_left = horizontal_anchor
     btn.anchor_right = horizontal_anchor
@@ -269,7 +304,9 @@ func show_result(victory: bool, score: int, signals: int) -> void:
     result_title.text = "THE SKY REMEMBERS" if victory else "SIGNAL LOST"
     result_title.add_theme_color_override("font_color", AQUA if victory else GOLD)
     result_detail.text = ("SEVEN BEACONS RESTORED  •  SCORE %d" % score) if victory else ("REACHED %d / 7  •  SCORE %d\nYOUR FLIGHT IS NOT OVER" % [signals, score])
-    for action in ["steer_left", "steer_right", "steer_up", "steer_down", "boost", "brake"]:
+    if joystick != null:
+        joystick.reset_stick()
+    for action in ["steer_left", "steer_right", "steer_up", "steer_down", "boost", "brake", "fire"]:
         Input.action_release(action)
 
 
@@ -287,3 +324,35 @@ func update_graphics_hud(preset: String, fps: int, draws: int) -> void:
     if perf_button == null:
         return
     perf_button.text = "%s  %d FPS  %d DC" % [preset, fps, draws]
+
+
+func update_combat_hud(sector: int, alive: int, destroyed: int, combo: int, mission: String) -> void:
+    if combat_label != null:
+        combat_label.text = "HOSTILES %d   •   KILLS %d   •   COMBO x%d" % [alive, destroyed, combo]
+    if mission_label != null:
+        mission_label.text = "SECTOR %02d  •  %s" % [sector, mission]
+
+
+func update_hangar(credits: int, best: int, levels: Dictionary) -> void:
+    upgrade_levels = levels.duplicate()
+    if hangar_balance != null:
+        hangar_balance.text = "SALVAGE  %d   •   RECORD  %d" % [credits, best]
+    for kind in ["hull", "weapon", "reactor"]:
+        var button: Button
+        if kind == "hull":
+            button = hull_upgrade_button
+        elif kind == "weapon":
+            button = weapon_upgrade_button
+        else:
+            button = reactor_upgrade_button
+        if button == null:
+            continue
+        var lv: int = int(levels.get(kind, 0))
+        var cost: int = 100 * (lv + 1) * (lv + 1)
+        var title_text := {"hull": "HULL REINFORCEMENT", "weapon": "PLASMA CANNON", "reactor": "REACTOR CAPACITY"}[kind]
+        button.text = "%s  LV %d  •  %s" % [title_text, lv, ("MAXED" if lv >= 3 else str(cost) + " SC")]
+        button.disabled = lv >= 3 or credits < cost
+
+
+func update_results(text_line: String) -> void:
+    result_detail.text = text_line
