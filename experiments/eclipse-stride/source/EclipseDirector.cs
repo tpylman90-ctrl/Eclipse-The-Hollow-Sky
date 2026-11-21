@@ -283,7 +283,7 @@ namespace EclipseHollowSky
             // resolution and scenery distance as independent GPU budget levers.
             try
             {
-                var graphics = Game.GraphicsDeviceManager;
+                var graphics = ((Stride.Engine.Game)Game).GraphicsDeviceManager;
                 graphics.PreferredBackBufferWidth = quality == 0 ? 720 : quality == 1 ? 960 : 1280;
                 graphics.PreferredBackBufferHeight = quality == 0 ? 405 : quality == 1 ? 540 : 720;
                 graphics.ApplyChanges();
@@ -460,10 +460,10 @@ namespace EclipseHollowSky
 
         public override void Update()
         {
-            float dt = (float)Game.UpdateTime.Elapsed.TotalSeconds;
-            if (dt <= 0) return;
-            dt = Math.Min(dt, .05f);
-            tickHz = tickHz * .92f + .08f / dt;
+            float rawDt = (float)Game.UpdateTime.Elapsed.TotalSeconds;
+            if (rawDt <= 0) return;
+            float dt = Math.Min(rawDt, .05f);
+            tickHz = tickHz * .92f + .08f / rawDt;
             EclipseBridge.Input(out var stick, out bool fire, out bool boost,
                                 out bool brake, out bool start, out int purchase, out bool cycleQuality);
             if (Input.IsKeyDown(Keys.A)) stick.X -= 1;
