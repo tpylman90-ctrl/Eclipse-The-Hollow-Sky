@@ -17,7 +17,26 @@ var gate_material: StandardMaterial3D
 var active_gate := 0
 
 
+const BAKED_WORLD := "res://generated/world.scn"
+
+
 func _ready() -> void:
+    if ResourceLoader.exists(BAKED_WORLD):
+        var packed := load(BAKED_WORLD) as PackedScene
+        if packed != null:
+            var stage := packed.instantiate() as Node3D
+            if stage != null:
+                add_child(stage)
+                for i in range(GATE_COUNT):
+                    var candidate := stage.get_node_or_null("Gate_%02d" % i) as Node3D
+                    if candidate != null:
+                        gates.append(candidate)
+                if gates.size() == GATE_COUNT:
+                    print("ECLIPSE: loading offline-compiled stage; runtime geometry generation bypassed")
+                    return
+                gates.clear()
+                stage.queue_free()
+    # No prebuilt asset? Stay playable from a source-only checkout.
     _make_materials()
     _make_atmosphere()
     _build_course()
