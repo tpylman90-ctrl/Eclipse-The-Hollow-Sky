@@ -309,18 +309,44 @@ func _make_gate(center: Vector3, index: int) -> void:
     var ornaments := Node3D.new()
     ornaments.name = "Ornaments"
     gate.add_child(ornaments)
+    # 24 separately submitted gate ornaments are now TWO instanced draws.
+    # Keep the parent Ornaments node so the animation and PackedScene loader
+    # remain unchanged; only the rendering representation is replaced.
+    var spike_mesh := PrismMesh.new()
+    spike_mesh.size = Vector3(0.8, 1.65, 0.35)
+    var spike_instances := MultiMesh.new()
+    spike_instances.transform_format = MultiMesh.TRANSFORM_3D
+    spike_instances.mesh = spike_mesh
+    spike_instances.instance_count = 12
+    var dot_mesh := SphereMesh.new()
+    dot_mesh.radius = 0.22
+    dot_mesh.height = 0.44
+    dot_mesh.radial_segments = 8
+    dot_mesh.rings = 4
+    var dot_instances := MultiMesh.new()
+    dot_instances.transform_format = MultiMesh.TRANSFORM_3D
+    dot_instances.mesh = dot_mesh
+    dot_instances.instance_count = 12
     for j in range(12):
-        var theta := TAU * float(j) / 12.0
-        var spike := PrismMesh.new()
-        spike.size = Vector3(0.8, 1.65, 0.35)
-        var spike_node := _mesh(ornaments, spike, Vector3(cos(theta) * 5.68, sin(theta) * 5.68, 0.0), gold_material)
-        spike_node.rotation.z = theta - PI / 2.0
-        var dot := SphereMesh.new()
-        dot.radius = 0.22
-        dot.height = 0.44
-        dot.radial_segments = 8
-        dot.rings = 4
-        _mesh(ornaments, dot, Vector3(cos(theta) * 6.18, sin(theta) * 6.18, 0.0), cyan_material)
+        var theta: float = TAU * float(j) / 12.0
+        var spike_position := Vector3(cos(theta) * 5.68, sin(theta) * 5.68, 0.0)
+        var dot_position := Vector3(cos(theta) * 6.18, sin(theta) * 6.18, 0.0)
+        spike_instances.set_instance_transform(j,
+            Transform3D(Basis(Vector3.FORWARD, theta - PI / 2.0), spike_position))
+        dot_instances.set_instance_transform(j,
+            Transform3D(Basis(), dot_position))
+    var spikes := MultiMeshInstance3D.new()
+    spikes.name = "InstancedHaloSpikes"
+    spikes.multimesh = spike_instances
+    spikes.material_override = gold_material
+    spikes.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    ornaments.add_child(spikes)
+    var dots := MultiMeshInstance3D.new()
+    dots.name = "InstancedHaloLights"
+    dots.multimesh = dot_instances
+    dots.material_override = cyan_material
+    dots.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+    ornaments.add_child(dots)
     var light := OmniLight3D.new()
     light.name = "BeaconLight"
     light.light_color = Color(1.0, 0.58, 0.22)
