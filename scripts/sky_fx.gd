@@ -85,25 +85,32 @@ func _build_cascades() -> void:
             root.name = "Aetherfall_%02d_%d" % [i, side]
             scenery.add_child(root)
             cascades.append(root)
+            # Combine three ribbons into ONE mesh/draw submission per cascade.
+            # Source ribbon geometry and UVs remain identical to the previous
+            # build; only CPU-side material state and draw work are reduced.
+            var welded := SurfaceTool.new()
+            welded.begin(Mesh.PRIMITIVE_TRIANGLES)
             for strip in range(3):
                 var width: float = rng.randf_range(1.4, 2.9)
                 var height: float = rng.randf_range(37.0, 59.0)
                 var drift: float = rng.randf_range(-3.2, 3.2)
                 var offset_x: float = float(strip - 1) * 1.35
                 var ribbon_mesh := _ribbon_mesh(width, height, drift, float(strip) * 1.82)
-                var ribbon := MeshInstance3D.new()
-                ribbon.mesh = ribbon_mesh
-                ribbon.position = Vector3(offset_x, 0.0, float(strip) * 0.56)
-                ribbon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-                var flow := ShaderMaterial.new()
-                flow.shader = FALL_SHADER
-                flow.set_shader_parameter("ribbon_seed", rng.randf_range(0.0, 15.0))
-                flow.set_shader_parameter("flow_rate", rng.randf_range(0.82, 1.48))
-                flow.set_shader_parameter("strength", 0.68)
-                flow.set_shader_parameter("core_tint", Color("#2797c4"))
-                flow.set_shader_parameter("rim_tint", Color("#85f2e9"))
-                ribbon.material_override = flow
-                root.add_child(ribbon)
+                var transform := Transform3D(Basis(), Vector3(offset_x, 0.0, float(strip) * 0.56))
+                welded.append_from(ribbon_mesh, 0, transform)
+            var combined := MeshInstance3D.new()
+            combined.name = "BatchedAetherfallRibbons"
+            combined.mesh = welded.commit()
+            combined.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+            var flow := ShaderMaterial.new()
+            flow.shader = FALL_SHADER
+            flow.set_shader_parameter("ribbon_seed", rng.randf_range(0.0, 15.0))
+            flow.set_shader_parameter("flow_rate", rng.randf_range(0.82, 1.48))
+            flow.set_shader_parameter("strength", 0.68)
+            flow.set_shader_parameter("core_tint", Color("#2797c4"))
+            flow.set_shader_parameter("rim_tint", Color("#85f2e9"))
+            combined.material_override = flow
+            root.add_child(combined)
             # Luminous arch at lip of the fall, without dynamic per-pixel lights.
             var crown := TorusMesh.new()
             crown.inner_radius = 2.0
