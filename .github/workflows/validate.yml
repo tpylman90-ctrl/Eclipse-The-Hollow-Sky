@@ -27,10 +27,21 @@ jobs:
         shell: bash
         run: |
           set -e
-          for script in scripts/*.gd; do
+          for script in scripts/*.gd tools/*.gd tests/*.gd; do
             echo "Checking ${script}"
             godot --headless --path . --check-only --script "res://${script}"
           done
+      - name: Precompile world and static draw-call batches
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tools/bake_stage.gd 2>&1 | tee /tmp/eclipse-bake.log
+          grep -q "ECLIPSE STAGE BAKE: PASS" /tmp/eclipse-bake.log
+          test -s generated/world.scn
+          test -s generated/architecture.scn
+          if grep -E 'SCRIPT ERROR|Parse Error|Invalid call|Invalid access|ERROR:.*(GDScript|script|scene)' /tmp/eclipse-bake.log; then
+            exit 1
+          fi
       - name: Import and script validation
         shell: bash
         run: |
@@ -58,6 +69,17 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+      - name: Precompile world and static draw-call batches
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tools/bake_stage.gd 2>&1 | tee /tmp/eclipse-bake.log
+          grep -q "ECLIPSE STAGE BAKE: PASS" /tmp/eclipse-bake.log
+          test -s generated/world.scn
+          test -s generated/architecture.scn
+          if grep -E 'SCRIPT ERROR|Parse Error|Invalid call|Invalid access|ERROR:.*(GDScript|script|scene)' /tmp/eclipse-bake.log; then
+            exit 1
+          fi
       - name: Import project
         run: godot --headless --path . --editor --import --quit
       - name: Validate a full combat and sector progression loop
@@ -86,6 +108,17 @@ jobs:
           cp -a /root/.config/godot/. "$HOME/.config/godot/"
           test -f "$HOME/.local/share/godot/export_templates/4.5.1.stable/android_debug.apk"
           test -f "$HOME/.config/godot/editor_settings-4.5.tres"
+      - name: Precompile world and static draw-call batches
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://tools/bake_stage.gd 2>&1 | tee /tmp/eclipse-bake.log
+          grep -q "ECLIPSE STAGE BAKE: PASS" /tmp/eclipse-bake.log
+          test -s generated/world.scn
+          test -s generated/architecture.scn
+          if grep -E 'SCRIPT ERROR|Parse Error|Invalid call|Invalid access|ERROR:.*(GDScript|script|scene)' /tmp/eclipse-bake.log; then
+            exit 1
+          fi
       - name: Import resources
         run: godot --headless --path . --editor --import --quit
       - name: Export Android debug APK
