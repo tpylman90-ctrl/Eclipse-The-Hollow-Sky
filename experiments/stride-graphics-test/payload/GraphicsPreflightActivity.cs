@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using Android.App;
 using Android.Content;
@@ -40,13 +41,13 @@ public sealed class GraphicsPreflightActivity : Activity
             try
             {
                 prefs?.Edit()?.PutString(LastStageKey, "3D launch requested; renderer status unknown")?.Apply();
-                Android.Util.Log.Info("StrideGraphicsTest", "User requested Stride engine launch.");
+                global::Android.Util.Log.Info("StrideGraphicsTest", "User requested Stride engine launch.");
                 StartActivity(new Intent(this, typeof(StrideGraphicsTestActivity)));
             }
             catch (Exception error)
             {
                 prefs?.Edit()?.PutString(LastStageKey, "Android launch error: " + error)?.Apply();
-                Android.Util.Log.Error("StrideGraphicsTest", error.ToString());
+                global::Android.Util.Log.Error("StrideGraphicsTest", error.ToString());
                 RefreshInfo();
             }
         };
