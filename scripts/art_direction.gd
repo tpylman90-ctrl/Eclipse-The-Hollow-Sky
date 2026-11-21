@@ -209,8 +209,8 @@ func _build_background_monoliths() -> void:
     rng.seed = seed
     for i in range(28):
         var z: float = rng.randf_range(-1170.0, -185.0)
-        var side: float = -1.0 if i % 2 == 0 else 1.0
-        var x: float = rng.randf_range(88.0, 155.0) * side
+        var tower_side: float = -1.0 if i % 2 == 0 else 1.0
+        var x: float = rng.randf_range(88.0, 155.0) * tower_side
         var y: float = rng.randf_range(-50.0, -19.0)
         var tall: float = rng.randf_range(32.0, 85.0)
         var t := Node3D.new()
