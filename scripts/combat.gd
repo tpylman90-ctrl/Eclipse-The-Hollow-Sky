@@ -254,13 +254,15 @@ func _update_shots(delta: float) -> void:
         var data: Dictionary = shots[i]
         var bullet: Node3D = data["node"]
         var velocity: Vector3 = data["velocity"]
+        var prior: Vector3 = bullet.global_position
         bullet.position += velocity * delta
+        var traveled: Vector3 = bullet.global_position - prior
         data["life"] = float(data["life"]) - delta
         if float(data["life"]) <= 0.0:
             _erase_shot(i)
             continue
         if bool(data["hostile"]):
-            if bullet.global_position.distance_to(ship.global_position) < 3.7:
+            if _distance_to_segment(ship.global_position, prior, traveled) < 3.7:
                 player_damaged.emit(1)
                 _erase_shot(i)
         else:
@@ -269,7 +271,7 @@ func _update_shots(delta: float) -> void:
                 var enemy_data: Dictionary = hostiles[j]
                 var n: Node3D = enemy_data["node"]
                 var radius: float = 6.3 if bool(enemy_data["elite"]) else 2.8
-                if bullet.global_position.distance_to(n.global_position) < radius:
+                if _distance_to_segment(n.global_position, prior, traveled) < radius:
                     hostile_struck.emit()
                     enemy_data["hp"] = int(enemy_data["hp"]) - (1 + mini(weapon_level, 1))
                     struck = true
@@ -308,3 +310,12 @@ func _update_supplies(delta: float) -> void:
 
 func count_alive() -> int:
     return hostiles.size()
+
+
+func _distance_to_segment(point: Vector3, origin: Vector3, distance: Vector3) -> float:
+    # Swept collision prevents fast plasma from tunneling between 30 FPS frames.
+    var length_squared: float = distance.length_squared()
+    if length_squared < 0.00001:
+        return point.distance_to(origin)
+    var interpolation: float = clampf((point - origin).dot(distance) / length_squared, 0.0, 1.0)
+    return point.distance_to(origin + interpolation * distance)
