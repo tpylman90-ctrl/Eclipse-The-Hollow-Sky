@@ -42,7 +42,6 @@ $playerInputFile = Join-Path $gameDir "Player/PlayerInput.cs"
 $playerSource = [System.IO.File]::ReadAllText($playerInputFile)
 $patches = @(
   @('// Character movement', 'MobileTouchState.Read(out var touchMove, out var touchLook, out var touchFire, out var touchReload);' + "`n            " + '// Character movement'),
-  @('// Broadcast the movement vector as a world-space Vector3', 'moveDirection += touchMove;' + "`n                " + 'if (moveDirection.LengthSquared() > 1f) moveDirection.Normalize();' + "`n                " + '// Broadcast the movement vector as a world-space Vector3'),
   @('CameraDirectionEventKey.Broadcast(cameraDirection);', 'CameraDirectionEventKey.Broadcast(cameraDirection + touchLook);'),
   @('if (Input.PointerEvents.Any(x => x.EventType == PointerEventType.Pressed))', 'if (!MobileTouchState.Enabled && Input.PointerEvents.Any(x => x.EventType == PointerEventType.Pressed))'),
   @('ShootEventKey.Broadcast(didShoot);', 'ShootEventKey.Broadcast(didShoot || touchFire);'),
@@ -52,6 +51,16 @@ foreach ($patch in $patches) {
   if (-not $playerSource.Contains($patch[0])) { throw "Stride PlayerInput template changed: $($patch[0])" }
   $playerSource = $playerSource.Replace($patch[0], $patch[1])
 }
+# Do this multiline insertion outside PowerShell's nested @() arrays: inside
+# them the comma and '+' operators have surprising precedence.
+$moveAnchor = 'var worldSpeed = (Camera != null)'
+if (-not $playerSource.Contains($moveAnchor)) { throw "Could not locate worldSpeed assignment" }
+$moveSnippet = @'
+moveDirection += touchMove;
+                if (moveDirection.LengthSquared() > 1f) moveDirection.Normalize();
+                var worldSpeed = (Camera != null)
+'@
+$playerSource = $playerSource.Replace($moveAnchor, $moveSnippet.TrimEnd())
 [System.IO.File]::WriteAllText($playerInputFile, $playerSource)
 Write-Host "Mobile touchscreen movement, camera, fire, and reload wired to original player controller."
 
