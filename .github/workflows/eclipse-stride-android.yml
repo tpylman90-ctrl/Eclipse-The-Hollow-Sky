@@ -1,0 +1,50 @@
+name: Build Eclipse Stride Android Game
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/eclipse-stride-android.yml'
+      - 'experiments/eclipse-stride/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eclipse-stride-game
+  cancel-in-progress: true
+
+jobs:
+  android-game:
+    name: Eclipse - Hollow Sky / Stride Android v1
+    runs-on: windows-2022
+    timeout-minutes: 85
+    steps:
+      - name: Checkout game repository
+        uses: actions/checkout@v4
+      - name: Install .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Android Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android workload
+        shell: pwsh
+        run: |
+          dotnet workload install android
+          if ($LASTEXITCODE -ne 0) { throw "Android workload unavailable" }
+      - name: Build original Eclipse Stride game and signed APK
+        shell: pwsh
+        run: |
+          ./experiments/eclipse-stride/build-eclipse.ps1
+      - name: Upload game APK and reproducible source
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eclipse-hollow-sky-stride-android
+          path: experiments/eclipse-stride/.generated/artifacts/
+          if-no-files-found: warn
+          retention-days: 14
