@@ -12,8 +12,10 @@ if [ -e "$OUT/$NAME" ]; then
 fi
 
 dotnet new install Stride.Templates.Games.Starters@4.4.3
+# --platforms consumes repeated values; keep it LAST so the dotnet template
+# parser does not misinterpret other flags as additional platforms.
 dotnet new stride-fps -n "$NAME" -o "$OUT/$NAME" \
-  --platforms android --graphicsProfile 10.0 --orientation LandscapeLeft
+  --graphicsProfile 10.0 --orientation LandscapeLeft --platforms android
 
 # Prefer the standard .Android.csproj suffix from Stride; fail explicitly if
 # future templates change their project naming instead of silently building nothing.
