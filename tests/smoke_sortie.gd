@@ -25,6 +25,37 @@ func _test() -> void:
         push_error("Spatial budget failed to cull distant static geometry")
         quit(1)
         return
+    if game.render_budget.shadow_candidates < 10:
+        push_error("Shadow budget did not discover baked static casters")
+        quit(1)
+        return
+    if game.render_budget.active_shadow_casters >= game.render_budget.shadow_candidates:
+        push_error("Shadow budget failed to exclude distant casters")
+        quit(1)
+        return
+    var occlusion_sample: Dictionary = {}
+    for entry in game.render_budget.geometry:
+        var item := entry["mesh"] as MeshInstance3D
+        if float(entry["radius"]) < 45.0 and item.get_aabb().size.length() > 4.0:
+            occlusion_sample = entry
+            break
+    if occlusion_sample.is_empty():
+        push_error("No near-camera occlusion-test fixture in compiled scenery")
+        quit(1)
+        return
+    var original_cam_pos: Vector3 = game.craft.chase_camera.global_position
+    game.craft.chase_camera.global_position = occlusion_sample["center"]
+    game.render_budget.update_budget(true)
+    if not bool(occlusion_sample["camera_hidden"]):
+        push_error("Camera-intersection guard failed to hide the intersecting static object")
+        quit(1)
+        return
+    game.craft.chase_camera.global_position = original_cam_pos
+    game.render_budget.update_budget(true)
+    if bool(occlusion_sample["camera_hidden"]):
+        push_error("Camera-intersection guard failed to restore scenery")
+        quit(1)
+        return
     if game.sky_fx.cascades.size() != 14:
         push_error("Missing batched aetherfall groups")
         quit(1)
@@ -146,5 +177,5 @@ func _test() -> void:
         push_error("Hangar return failed")
         quit(1)
         return
-    print("ECLIPSE GAMEPLAY SMOKE: PASS -- profiles, adaptive render scaling, shadow LOD, spatial culling, ribbon batching, enemies, salvage, sector, debrief, hangar")
+    print("ECLIPSE GAMEPLAY SMOKE: PASS -- profiles, adaptive render scaling, shadow caster budget, camera clipping guard, shadow LOD, spatial culling, ribbon batching, enemies, salvage, sector, debrief, hangar")
     quit(0)
