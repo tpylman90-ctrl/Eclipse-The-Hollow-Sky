@@ -6,8 +6,8 @@ const COURSE_SPACING := 142.0
 
 var gates: Array[Node3D] = []
 var motion_time := 0.0
-var rock_material: StandardMaterial3D
-var cliff_material: StandardMaterial3D
+var rock_material: Material
+var cliff_material: Material
 var stone_material: StandardMaterial3D
 var ivory_material: StandardMaterial3D
 var gold_material: StandardMaterial3D
@@ -24,9 +24,22 @@ func _ready() -> void:
 
 
 func _make_materials() -> void:
-    rock_material = _material(Color(0.115, 0.151, 0.223), 0.96, 0.08)
-    rock_material.vertex_color_use_as_albedo = true
-    cliff_material = _material(Color(0.20, 0.25, 0.32), 0.93, 0.02)
+    # World-space erosion shader gives large cliff faces mineral variation without texture tiling.
+    var shader_asset := preload("res://shaders/strata.gdshader")
+    var rock_shader := ShaderMaterial.new()
+    rock_shader.shader = shader_asset
+    rock_shader.set_shader_parameter("stone_tint", Color("#394b58"))
+    rock_shader.set_shader_parameter("mineral_tint", Color("#6a7b83"))
+    rock_shader.set_shader_parameter("stratum_frequency", 0.42)
+    rock_shader.set_shader_parameter("relief", 0.58)
+    rock_material = rock_shader
+    var cliff_shader := ShaderMaterial.new()
+    cliff_shader.shader = shader_asset
+    cliff_shader.set_shader_parameter("stone_tint", Color("#384756"))
+    cliff_shader.set_shader_parameter("mineral_tint", Color("#87918f"))
+    cliff_shader.set_shader_parameter("stratum_frequency", 0.58)
+    cliff_shader.set_shader_parameter("relief", 0.55)
+    cliff_material = cliff_shader
     stone_material = _material(Color(0.28, 0.35, 0.43), 0.78, 0.12)
     ivory_material = _material(Color(0.62, 0.69, 0.70), 0.64, 0.18)
     gold_material = _material(Color(0.82, 0.52, 0.24), 0.43, 0.55)
@@ -56,10 +69,10 @@ func _glow(color: Color, strength: float) -> StandardMaterial3D:
 
 func _make_atmosphere() -> void:
     var sky_mat := ProceduralSkyMaterial.new()
-    sky_mat.sky_top_color = Color(0.025, 0.039, 0.125)
-    sky_mat.sky_horizon_color = Color(0.39, 0.22, 0.35)
-    sky_mat.ground_horizon_color = Color(0.47, 0.30, 0.40)
-    sky_mat.ground_bottom_color = Color(0.065, 0.075, 0.145)
+    sky_mat.sky_top_color = Color("#0b142c")
+    sky_mat.sky_horizon_color = Color("#755067")
+    sky_mat.ground_horizon_color = Color("#73576b")
+    sky_mat.ground_bottom_color = Color("#172939")
     sky_mat.use_debanding = true
     var sky := Sky.new()
     sky.sky_material = sky_mat
@@ -67,12 +80,12 @@ func _make_atmosphere() -> void:
     environment.background_mode = Environment.BG_SKY
     environment.sky = sky
     environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-    environment.ambient_light_energy = 0.56
+    environment.ambient_light_energy = 0.85
     environment.tonemap_mode = Environment.TONE_MAPPER_FILMIC
     environment.fog_enabled = true
-    environment.fog_light_color = Color(0.38, 0.23, 0.39)
-    environment.fog_density = 0.0024
-    environment.fog_sky_affect = 0.32
+    environment.fog_light_color = Color("#465e74")
+    environment.fog_density = 0.0015
+    environment.fog_sky_affect = 0.14
     environment.glow_enabled = true
     environment.glow_intensity = 0.35
     var world_env := WorldEnvironment.new()
@@ -80,14 +93,14 @@ func _make_atmosphere() -> void:
     add_child(world_env)
     var sun := DirectionalLight3D.new()
     sun.rotation_degrees = Vector3(-38.0, -31.0, 0.0)
-    sun.light_color = Color(1.0, 0.70, 0.48)
-    sun.light_energy = 1.23
+    sun.light_color = Color("#ffcb93")
+    sun.light_energy = 1.63
     sun.shadow_enabled = true
     add_child(sun)
     var fill := DirectionalLight3D.new()
     fill.rotation_degrees = Vector3(-8.0, 134.0, 0.0)
-    fill.light_color = Color(0.25, 0.53, 0.85)
-    fill.light_energy = 0.43
+    fill.light_color = Color("#80b4d0")
+    fill.light_energy = 0.68
     fill.shadow_enabled = false
     add_child(fill)
     var sun_disc := SphereMesh.new()
