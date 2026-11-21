@@ -30,6 +30,16 @@ func _ready() -> void:
     root.set_anchors_preset(Control.PRESET_FULL_RECT)
     root.mouse_filter = Control.MOUSE_FILTER_IGNORE
     add_child(root)
+    # Grade the game world without darkening or blocking the readable HUD.
+    var lens := ColorRect.new()
+    lens.name = "CinematicVignette"
+    lens.set_anchors_preset(Control.PRESET_FULL_RECT)
+    lens.mouse_filter = Control.MOUSE_FILTER_IGNORE
+    lens.color = Color.WHITE
+    var treatment := ShaderMaterial.new()
+    treatment.shader = preload("res://shaders/cinematic_grade.gdshader")
+    lens.material = treatment
+    root.add_child(lens)
     _build_menu()
     _build_hud()
     _build_results()
