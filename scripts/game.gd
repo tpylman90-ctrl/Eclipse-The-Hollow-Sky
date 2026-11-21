@@ -27,6 +27,9 @@ var hull := MAX_HULL
 var score := 0
 var message := ""
 var message_age := 0.0
+var perf_elapsed := 0.0
+var slow_samples := 0
+var recovery_samples := 0
 
 
 func _ready() -> void:
@@ -67,6 +70,10 @@ func _start() -> void:
     hull = MAX_HULL
     gate_index = 0
     message_age = 0.0
+    perf_elapsed = 0.0
+    slow_samples = 0
+    recovery_samples = 0
+    sky_fx.set_low_effects(false)
     message = "ALIGN WITH THE GOLDEN HALO"
     craft.reset_flight()
     craft.set_active(true)
@@ -83,6 +90,24 @@ func _process(delta: float) -> void:
     if mode != Mode.FLIGHT:
         return
     elapsed += delta
+    perf_elapsed += delta
+    # Sustained FPS checks prevent transient shader-compilation spikes from downgrading visuals.
+    if perf_elapsed >= 2.5 and elapsed > 6.0:
+        perf_elapsed = 0.0
+        var measured_fps: int = Engine.get_frames_per_second()
+        if measured_fps > 0 and measured_fps < 29:
+            slow_samples += 1
+            recovery_samples = 0
+        elif measured_fps >= 46:
+            recovery_samples += 1
+            slow_samples = 0
+        else:
+            slow_samples = 0
+            recovery_samples = 0
+        if slow_samples >= 2:
+            sky_fx.set_low_effects(true)
+        elif recovery_samples >= 4:
+            sky_fx.set_low_effects(false)
     time_remaining = maxf(0.0, time_remaining - delta)
     message_age += delta
     if time_remaining <= 0.0:
