@@ -149,8 +149,16 @@ namespace EclipseHollowSky
                     lower[i]=upper[i]-new Vector3(0,.22f,0);
                 for(int i=1;i<upper.Length-1;i++)
                 {
-                    Triangle(mat,upper[0],upper[i],upper[i+1]);
-                    Triangle(mat,lower[i+1],lower[i],lower[0]);
+                    if (sign > 0)
+                    {
+                        Triangle(mat,upper[0],upper[i+1],upper[i]);
+                        Triangle(mat,lower[i],lower[i+1],lower[0]);
+                    }
+                    else
+                    {
+                        Triangle(mat,upper[0],upper[i],upper[i+1]);
+                        Triangle(mat,lower[i+1],lower[i],lower[0]);
+                    }
                 }
                 for(int i=0;i<upper.Length;i++)
                 {
@@ -189,7 +197,7 @@ namespace EclipseHollowSky
             }
 
             public Entity Build(string label, Scene scene, GraphicsDevice device,
-                                Dictionary<string,Material> materials)
+                                Dictionary<string,Material> materials, Entity parent = null)
             {
                 var model=new Model();
                 Vector3 globalMin=new Vector3(float.MaxValue), globalMax=new Vector3(float.MinValue);
@@ -226,7 +234,8 @@ namespace EclipseHollowSky
                 model.BoundingBox=new BoundingBox(globalMin,globalMax);
                 model.BoundingSphere=BoundingSphere.FromBox(model.BoundingBox);
                 var entity=new Entity(label) { new ModelComponent(model) };
-                scene.Entities.Add(entity);
+                if (parent == null) scene.Entities.Add(entity);
+                else entity.Transform.Parent = parent.Transform;
                 return entity;
             }
         }

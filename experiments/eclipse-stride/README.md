@@ -30,7 +30,7 @@ The v3 branch changes:
 
 **Not yet validated:** Full device GPU timings, ASTC packaging, normal-map/trim-sheet authored textures, Blender GLB pipeline, advanced bloom/SSR or true asset LOD switching. Those require scene assets and subsequent on-device profile-guided passes. Do not claim these effects exist in v3. The official Stride Game Profiler, RenderDoc and Android GPU Inspector are appropriate for deeper investigation.
 
-**Version:** The v2 bootstrap already installs the Stride 4.4.4 official starter; v3 keeps the same tested 4.4.4 versions rather than partially rewriting its packages to 4.4.3. v3 uses a distinct Android application ID and APK filename; the last working v2 commit is preserved in `archive/eclipse-stride-v2-2026-11-21`.
+**Version:** The official game template used for project generation is Stride 4.4.4, but the published engine/runtime NuGet packages are 4.4.3. The v3 build now explicitly pins those packages to 4.4.3, matching the successful v2 runtime. v3 uses a distinct Android application ID and APK filename; the last working v2 commit is preserved in `archive/eclipse-stride-v2-2026-11-21`.
 
 ## Source
 - `source/EclipseDirector.cs`: full game loop and world

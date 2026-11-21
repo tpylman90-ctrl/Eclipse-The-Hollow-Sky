@@ -35,13 +35,13 @@ Copy-Item (Join-Path $root "source/EclipseGeometry.cs") (Join-Path $gameDir "Ecl
 Copy-Item (Join-Path $root "source/EclipseActivity.cs") (Join-Path $androidDir "EclipseActivity.cs") -Force
 Copy-Item (Join-Path $root "source/FlightHud.cs") (Join-Path $androidDir "FlightHud.cs") -Force
 
-# Pin the actual working bootstrap version consistently: Stride 4.4.4.
-# v2 previously installed 4.4.4 then only rewrote old 4.4.0-4.4.2 references.
+# Stride starter TEMPLATE is 4.4.4; published Stride runtime NuGet packages
+# are 4.4.3, matching the verified v2 build. Pin runtime packages explicitly.
 Get-ChildItem -Path $project -Recurse -File |
     Where-Object { $_.Extension -in @(".csproj", ".props", ".targets") } |
     ForEach-Object {
         $old = [System.IO.File]::ReadAllText($_.FullName)
-        $new = [regex]::Replace($old, '4\.4\.\d+', '4.4.4')
+        $new = [regex]::Replace($old, '4\.4\.\d+', '4.4.3')
         if ($new -cne $old) { [System.IO.File]::WriteAllText($_.FullName, $new) }
     }
 

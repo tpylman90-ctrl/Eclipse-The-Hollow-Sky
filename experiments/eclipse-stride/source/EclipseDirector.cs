@@ -28,6 +28,7 @@ namespace EclipseHollowSky
         private readonly List<Beacon> beacons = new List<Beacon>();
         private readonly List<Hostile> hostiles = new List<Hostile>();
         private readonly List<Bolt> bolts = new List<Bolt>();
+        private readonly Stack<Entity> recycledBolts = new Stack<Entity>();
         private int[] upgrades = new int[3];
         private int bank, maxScore, score, salvage, gateIndex, hull, sector = 1;
         private float x, y, z, energy = 100f, timeLeft = 90f, shotCooldown, flashClock;
@@ -182,9 +183,8 @@ namespace EclipseHollowSky
             scene.Entities.Add(ship);
             var build = new EclipseGeometry.Batch();
             build.Skiff();
-            var visible = build.Build("Skiff / batched hard-surface chassis", scene,
-                Game.GraphicsDevice, materials);
-            visible.Transform.Parent = ship.Transform;
+            build.Build("Skiff / batched hard-surface chassis", scene,
+                Game.GraphicsDevice, materials, ship);
         }
 
         private Vector3 GateAt(int index)
@@ -265,7 +265,8 @@ namespace EclipseHollowSky
                     Math.Abs(chunk.CenterZ - z) < (chunk.IsCloud ? cloudDistance : islandDistance);
             var sun = scene.Entities.FirstOrDefault(e => e.Name == "WarmLowSun");
             var direct = sun?.Get<LightComponent>()?.Type as Stride.Rendering.Lights.LightDirectional;
-            if (direct != null) direct.Shadow.Enabled = quality == 2;
+            if (direct != null && direct.Shadow.Enabled != (quality == 2))
+                direct.Shadow.Enabled = quality == 2;
         }
 
         private void ChangeQuality()
@@ -352,7 +353,11 @@ namespace EclipseHollowSky
                 drone.Root.Transform.Scale = Vector3.One;
                 drone.Root.Transform.Position = drone.Base;
             }
-            foreach (var bolt in bolts) bolt.Root.Transform.Scale = Vector3.Zero;
+            foreach (var bolt in bolts)
+            {
+                bolt.Root.Transform.Scale = Vector3.Zero;
+                recycledBolts.Push(bolt.Root);
+            }
             bolts.Clear();
             SetCraftTransform(); FollowCamera();
         }
@@ -385,7 +390,10 @@ namespace EclipseHollowSky
 
         private void SpawnBolt()
         {
-            var bolt = Orb("Aether plasma bolt", "aether", x, y, z - 5f, .35f, .35f, 1.5f);
+            var bolt = recycledBolts.Count > 0 ? recycledBolts.Pop() :
+                Orb("Aether plasma bolt", "aether", x, y, z - 5f, .35f, .35f, 1.5f);
+            bolt.Transform.Position = new Vector3(x, y, z - 5f);
+            bolt.Transform.Scale = new Vector3(.35f, .35f, 1.5f);
             bolts.Add(new Bolt { Root = bolt, Life = 1.85f });
         }
 
@@ -424,6 +432,7 @@ namespace EclipseHollowSky
                 if (hit || bolt.Life <= 0)
                 {
                     bolt.Root.Transform.Scale = Vector3.Zero;
+                    recycledBolts.Push(bolt.Root);
                     bolts.RemoveAt(i);
                 }
             }
