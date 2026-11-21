@@ -50,6 +50,7 @@ var slow_samples := 0
 var recovery_samples := 0
 var graphics_index := 0
 var telemetry_elapsed := 0.0
+var hud_refresh_elapsed := 0.0
 
 
 func _ready() -> void:
@@ -185,6 +186,7 @@ func _process(delta: float) -> void:
     elapsed += delta
     perf_elapsed += delta
     telemetry_elapsed += delta
+    hud_refresh_elapsed += delta
     message_age += delta
     combo_timer += delta
     damage_immunity = maxf(0.0, damage_immunity - delta)
@@ -229,10 +231,14 @@ func _process(delta: float) -> void:
     _check_gate()
     if mode != Mode.FLIGHT:
         return
-    var prompt := message if message_age < 2.8 else _navigation_prompt()
-    interface_layer.update_status(gate_index, world.GATE_COUNT, hull,
-        time_remaining, craft.forward_speed, craft.energy, prompt, max_hull)
-    interface_layer.update_combat_hud(sector, combat.count_alive(), total_kills, combo, _mission_title())
+    # UI text relayout is unnecessary at native render frame frequency.
+    # Responsive flight, enemy AI and combat still update on every frame.
+    if hud_refresh_elapsed >= 0.12:
+        hud_refresh_elapsed = 0.0
+        var prompt := message if message_age < 2.8 else _navigation_prompt()
+        interface_layer.update_status(gate_index, world.GATE_COUNT, hull,
+            time_remaining, craft.forward_speed, craft.energy, prompt, max_hull)
+        interface_layer.update_combat_hud(sector, combat.count_alive(), total_kills, combo, _mission_title())
 
 
 func _check_gate() -> void:
