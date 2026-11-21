@@ -51,6 +51,40 @@ func _test() -> void:
                 push_error("Expected 12 ornaments in each gate instanced group")
                 quit(1)
                 return
+    # Validate four profiles on the same baked scene without a scene reload.
+    for quality in range(4):
+        game.graphics_index = quality
+        game._apply_graphics()
+        if game.mobile_budget.preset != quality:
+            push_error("Performance preset did not apply")
+            quit(1)
+            return
+        if absf(game.mobile_budget.current_scale - game.mobile_budget.INITIAL_SCALES[quality]) > 0.01:
+            push_error("Performance preset render resolution incorrect")
+            quit(1)
+            return
+    var sun_for_profiles := game.world.find_child("PrimarySun", true, false) as DirectionalLight3D
+    if sun_for_profiles == null or sun_for_profiles.directional_shadow_mode != DirectionalLight3D.SHADOW_ORTHOGONAL:
+        push_error("FPS MAX did not reduce directional shadow splits")
+        quit(1)
+        return
+    game.graphics_index = 1
+    game._apply_graphics()
+    var initial_scale: float = game.mobile_budget.current_scale
+    # Drive the supervisor with synthetic GPU-like slow frame timings;
+    # using the real CI runner's FPS would make this test non-deterministic.
+    for i in range(110):
+        game.mobile_budget.tick(0.041, false)
+    if game.mobile_budget.current_scale >= initial_scale:
+        push_error("Auto60 controller did not lower resolution after sustained slow frames")
+        quit(1)
+        return
+    game._apply_graphics()
+    if game.mobile_budget.percent_scale() != 90:
+        push_error("Auto60 profile did not recover its starting resolution")
+        quit(1)
+        return
+
     # Verify 60fps pacing is selectable but never imposed on Ultra by default,
     # and that the no-shadow diagnostic cleanly restores the sun.
     game._toggle_benchmark() # VSYNC -> UNLOCKED
@@ -112,5 +146,5 @@ func _test() -> void:
         push_error("Hangar return failed")
         quit(1)
         return
-    print("ECLIPSE GAMEPLAY SMOKE: PASS -- spatial culling, ribbon batching, enemies, salvage, sector, debrief, hangar")
+    print("ECLIPSE GAMEPLAY SMOKE: PASS -- profiles, adaptive render scaling, shadow LOD, spatial culling, ribbon batching, enemies, salvage, sector, debrief, hangar")
     quit(0)
