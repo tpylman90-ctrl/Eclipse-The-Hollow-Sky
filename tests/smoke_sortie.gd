@@ -49,13 +49,13 @@ func _test() -> void:
         return
     game._finish(false)
     await process_frame
-    if game.mode != game.Mode.END:
+    if game.mode != 2:
         push_error("Debrief state failed")
         quit(1)
         return
     game._return_hangar()
     await process_frame
-    if game.mode != game.Mode.TITLE:
+    if game.mode != 0:
         push_error("Hangar return failed")
         quit(1)
         return
