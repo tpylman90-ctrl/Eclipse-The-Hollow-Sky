@@ -41,7 +41,7 @@ Copy-Item -Path (Join-Path $root "payload/MobileTouchState.cs") -Destination (Jo
 $playerInputFile = Join-Path $gameDir "Player/PlayerInput.cs"
 $playerSource = [System.IO.File]::ReadAllText($playerInputFile)
 $patches = @(
-  @('var moveDirection = Input.GetLeftThumbAny(DeadZone);', 'MobileTouchState.Read(out var touchMove, out var touchLook, out var touchFire, out var touchReload);' + "`n                " + 'var moveDirection = Input.GetLeftThumbAny(DeadZone);'),
+  @('// Character movement', 'MobileTouchState.Read(out var touchMove, out var touchLook, out var touchFire, out var touchReload);' + "`n            " + '// Character movement'),
   @('// Broadcast the movement vector as a world-space Vector3', 'moveDirection += touchMove;' + "`n                " + 'if (moveDirection.LengthSquared() > 1f) moveDirection.Normalize();' + "`n                " + '// Broadcast the movement vector as a world-space Vector3'),
   @('CameraDirectionEventKey.Broadcast(cameraDirection);', 'CameraDirectionEventKey.Broadcast(cameraDirection + touchLook);'),
   @('if (Input.PointerEvents.Any(x => x.EventType == PointerEventType.Pressed))', 'if (!MobileTouchState.Enabled && Input.PointerEvents.Any(x => x.EventType == PointerEventType.Pressed))'),
