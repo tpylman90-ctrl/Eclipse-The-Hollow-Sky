@@ -213,7 +213,7 @@ func _physics_process(delta: float) -> void:
         # Analog strengths from touch stick, physical controller or keyboard.
         var axis := Input.get_vector("steer_left", "steer_right", "steer_down", "steer_up", 0.07)
         var side: float = axis.x
-        var pitch: float = -axis.y
+        var pitch: float = axis.y
         velocity_xy.x = move_toward(velocity_xy.x, side * 30.0, delta * 55.0)
         velocity_xy.y = move_toward(velocity_xy.y, pitch * 24.0, delta * 44.0)
         var wants_boost := Input.is_action_pressed("boost") and energy > 3.0
