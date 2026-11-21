@@ -377,7 +377,9 @@ func update_status(signals: int, total: int, shield: int, time_left: float, spee
 
 func update_graphics_hud(
     preset: String, fps: int, draws: int, cpu_ms: float, physics_ms: float,
-    visible_meshes: int, total_meshes: int, refresh_hz: float, renderer: String
+    visible_meshes: int, total_meshes: int,
+    active_shadows: int, total_shadows: int, close_occluders: int,
+    refresh_hz: float, renderer: String
 ) -> void:
     if perf_button == null:
         return
@@ -386,9 +388,11 @@ func update_graphics_hud(
         # Separate observed FPS-derived frame duration from Godot's process
         # monitor (not a true GPU timer and not necessarily synchronized).
         var observed_frame_ms: float = 1000.0 / float(maxi(fps, 1))
-        diagnostic_label.text = "FRAME %.1fms  PROC %.1fms  PHYS %.1fms  •  %d/%d static  •  %dHz  %s" % [
+        diagnostic_label.text = "FRAME %.1f  PROC %.1f  PHYS %.1fms  •  %d/%d SCENE  •  %d/%d SHADOW  •  %d Hz  %s" % [
             observed_frame_ms, cpu_ms, physics_ms, visible_meshes,
-            total_meshes, int(maxf(refresh_hz, 0.0)), renderer]
+            total_meshes, active_shadows, total_shadows, int(maxf(refresh_hz, 0.0)), renderer]
+        if close_occluders > 0:
+            diagnostic_label.text += "  •  %d OCC" % close_occluders
 
 
 func update_benchmark(mode: String) -> void:
