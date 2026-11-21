@@ -75,6 +75,8 @@ func _ready() -> void:
 
     sound_system = SoundScript.new()
     add_child(sound_system)
+    combat.plasma_fired.connect(sound_system.play_plasma)
+    combat.hostile_struck.connect(sound_system.play_impact)
     interface_layer = InterfaceScript.new()
     add_child(interface_layer)
     interface_layer.start_requested.connect(_start)
