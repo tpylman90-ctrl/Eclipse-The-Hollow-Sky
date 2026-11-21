@@ -2,7 +2,7 @@ name: Validate and build Eclipse prototype
 
 on:
   push:
-    branches: [main]
+    branches: [main, eclipse-shadow-budget-v11]
   pull_request:
   workflow_dispatch:
 
