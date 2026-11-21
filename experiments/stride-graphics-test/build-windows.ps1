@@ -29,13 +29,31 @@ Get-ChildItem -Path $project -Recurse -File |
 # crash cannot prevent the user from reading the preflight screen.
 $androidDirectory = Join-Path $project "$name.Android"
 $originalActivity = Join-Path $androidDirectory "$($name)Activity.cs"
-$activityText = [System.IO.File]::ReadAllText($originalActivity)
-if (-not $activityText.Contains("MainLauncher = true")) {
-  throw "Upstream Stride Activity launcher structure changed"
+$androidActivitySource = Join-Path $root "payload/StrideGraphicsTestActivity.cs"
+if (-not (Test-Path $originalActivity)) { throw "Upstream Android activity was not generated" }
+Copy-Item -Path $androidActivitySource -Destination $originalActivity -Force
+Copy-Item -Path (Join-Path $root "payload/MobileControlsOverlay.cs") -Destination (Join-Path $androidDirectory "MobileControlsOverlay.cs") -Force
+
+# Add shared touch input to the game project so movement uses the original
+# PlayerController physics, and camera orientation uses the original FpsCamera.
+$gameDir = Join-Path $project "$name.Game"
+Copy-Item -Path (Join-Path $root "payload/MobileTouchState.cs") -Destination (Join-Path $gameDir "Player/MobileTouchState.cs") -Force
+$playerInputFile = Join-Path $gameDir "Player/PlayerInput.cs"
+$playerSource = [System.IO.File]::ReadAllText($playerInputFile)
+$patches = @(
+  @('var moveDirection = Input.GetLeftThumbAny(DeadZone);', 'MobileTouchState.Read(out var touchMove, out var touchLook, out var touchFire, out var touchReload);' + "`n                " + 'var moveDirection = Input.GetLeftThumbAny(DeadZone);'),
+  @('// Broadcast the movement vector as a world-space Vector3', 'moveDirection += touchMove;' + "`n                " + 'if (moveDirection.LengthSquared() > 1f) moveDirection.Normalize();' + "`n                " + '// Broadcast the movement vector as a world-space Vector3'),
+  @('CameraDirectionEventKey.Broadcast(cameraDirection);', 'CameraDirectionEventKey.Broadcast(cameraDirection + touchLook);'),
+  @('if (Input.PointerEvents.Any(x => x.EventType == PointerEventType.Pressed))', 'if (!MobileTouchState.Enabled && Input.PointerEvents.Any(x => x.EventType == PointerEventType.Pressed))'),
+  @('ShootEventKey.Broadcast(didShoot);', 'ShootEventKey.Broadcast(didShoot || touchFire);'),
+  @('ReloadEventKey.Broadcast(isReloading);', 'ReloadEventKey.Broadcast(isReloading || touchReload);')
+)
+foreach ($patch in $patches) {
+  if (-not $playerSource.Contains($patch[0])) { throw "Stride PlayerInput template changed: $($patch[0])" }
+  $playerSource = $playerSource.Replace($patch[0], $patch[1])
 }
-$activityText = $activityText.Replace("MainLauncher = true", "MainLauncher = false")
-$activityText = $activityText.Replace("Game.Dispose();", "Game?.Dispose();")
-[System.IO.File]::WriteAllText($originalActivity, $activityText)
+[System.IO.File]::WriteAllText($playerInputFile, $playerSource)
+Write-Host "Mobile touchscreen movement, camera, fire, and reload wired to original player controller."
 
 $diagnosticsSource = Join-Path $root "payload/GraphicsPreflightActivity.cs"
 Copy-Item -Path $diagnosticsSource -Destination (Join-Path $androidDirectory "GraphicsPreflightActivity.cs") -Force
@@ -46,7 +64,7 @@ $androidProject = Join-Path $androidDirectory "$name.Android.csproj"
 $androidProjectContent = [System.IO.File]::ReadAllText($androidProject)
 $androidProjectContent = $androidProjectContent.Replace(
   "<ApplicationId>StrideGraphicsTest</ApplicationId>",
-  "<ApplicationId>com.neonfoundry.stride.graphicsdiagnostic.v2</ApplicationId>")
+  "<ApplicationId>com.neonfoundry.stride.graphicsdiagnostic.v3</ApplicationId>")
 # Critical for sideloading a .NET Android Debug APK: fast deployment defaults
 # to ON and places managed assemblies on the development machine instead
 # of inside the APK. GitHub-created APKs must be self-contained.
