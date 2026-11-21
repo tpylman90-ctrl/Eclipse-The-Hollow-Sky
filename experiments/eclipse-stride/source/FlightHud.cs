@@ -18,7 +18,7 @@ namespace EclipseHollowSky.Android
         private float anchorX, anchorY, thumbX, thumbY, padX, padY, padRadius;
         private float fireX, fireY, boostX, boostY, brakeX, brakeY, buttonRadius;
         private bool firing, boosting, braking;
-        private string mode = "HANGAR";
+        private string mode = "SPLASH";
         private int[] upgrades = new int[3];
 
         public FlightHud(Context context) : base(context)
@@ -36,7 +36,7 @@ namespace EclipseHollowSky.Android
             buttonRadius = Math.Min(46f * density, Height * .105f);
             padX = Math.Max(padRadius + 16f * density, Width * .13f);
             padY = Height - padRadius - 18f * density;
-            fireX = Width - buttonRadius - 18f * density;
+            fireX = Width - buttonRadius - 74f * density; // keep clear of Android right-side system navigation
             fireY = Height - buttonRadius - 20f * density;
             boostX = fireX - buttonRadius * 2.15f;
             boostY = fireY - buttonRadius * .25f;
@@ -55,6 +55,7 @@ namespace EclipseHollowSky.Android
         {
             if (mode != "FLIGHT")
             {
+                if (mode != "MENU" && mode != "RESULT") return;
                 if (y > Height * .69f && x > Width * .60f)
                     EclipseBridge.Launch();
                 else if (y > Height * .50f && y < Height * .73f)
@@ -164,7 +165,8 @@ namespace EclipseHollowSky.Android
             Layout();
             EclipseBridge.Hud(out string newMode, out string status, out float hp,
                 out float reactor,out float clock,out float fps,
-                out int points,out int salvage,out int signal,out int sector,out int[] levels);
+                out int points,out int salvage,out int signal,out int sector,out int[] levels,
+                out float loadProgress);
             mode=newMode;upgrades=levels;
 
             var white = Color.Argb(248,234,247,251);
@@ -172,15 +174,40 @@ namespace EclipseHollowSky.Android
             var orange=Color.Argb(251,252,152,81);
             var faint=Color.Argb(170,166,191,215);
 
-            if(mode=="FLIGHT")
+            if (mode == "SPLASH")
             {
-                FillRect(c,12*density,10*density,Math.Min(Width*.80f,530*density),80*density,Color.Argb(155,8,18,39));
-                Text(c,"ECLIPSE  /  SECTOR "+sector,22*density,32*density,17,white);
+                FillRect(c,0,0,Width,Height,Color.Argb(255,5,11,25));
+                Text(c,"STRIDE", Width*.50f, Height*.46f, 52,white,true);
+                Text(c,"GAME ENGINE", Width*.50f, Height*.54f, 16,cyan,true);
+                Text(c,"POWERED BY STRIDE  /  ECLIPSE: THE HOLLOW SKY",
+                    Width*.50f,Height*.82f,12,faint,true);
+            }
+            else if (mode == "LOADING" || mode == "SORTIE_LOADING")
+            {
+                FillRect(c,0,0,Width,Height,Color.Argb(255,7,14,30));
+                Text(c,"ECLIPSE",Width*.50f,Height*.32f,40,white,true);
+                Text(c,"THE HOLLOW SKY",Width*.50f,Height*.41f,20,cyan,true);
+                Text(c,mode=="LOADING" ? "LOADING GAME WORLD" : "PREPARING SORTIE",
+                    Width*.50f,Height*.54f,17,orange,true);
+                Text(c,status,Width*.50f,Height*.62f,13,white,true);
+                float barLeft=Width*.22f,barRight=Width*.78f;
+                FillRect(c,barLeft,Height*.69f,barRight,Height*.73f,
+                    Color.Argb(255,28,47,67));
+                FillRect(c,barLeft,Height*.69f,
+                    barLeft+(barRight-barLeft)*Math.Clamp(loadProgress,0f,1f),
+                    Height*.73f,cyan);
+                Text(c,Math.Round(loadProgress*100).ToString("0")+"%",
+                    Width*.50f,Height*.81f,13,faint,true);
+            }
+            else if(mode=="FLIGHT")
+            {
+                FillRect(c,12*density,16*density,Math.Min(Width*.80f,530*density),105*density,Color.Argb(185,8,18,39));
+                Text(c,"ECLIPSE  /  SECTOR "+sector,22*density,45*density,17,white);
                 Text(c,"SIGNAL "+(signal+1).ToString("00")+"/07   HULL "+hp.ToString("0")+
-                    "   ENERGY "+reactor.ToString("0"),22*density,53*density,13,cyan);
+                    "   ENERGY "+reactor.ToString("0"),22*density,69*density,13,cyan);
                 Text(c,"SCORE "+points+"    TIME "+clock.ToString("0")+
                     "    ~"+Math.Min(999,fps).ToString("0")+" UPDATE/s",
-                    22*density,73*density,11,faint);
+                    22*density,89*density,11,faint);
                 if(status!="FOLLOW THE SIGNALS")
                     Text(c,status,Width*.50f,Height*.16f,16,orange,true);
 
@@ -201,10 +228,10 @@ namespace EclipseHollowSky.Android
                 FillRect(c,0,0,Width,Height,Color.Argb(204,5,13,31));
                 Text(c,"ECLIPSE",Width*.08f,Height*.23f,50,white);
                 Text(c,"THE HOLLOW SKY",Width*.08f,Height*.33f,27,cyan);
-                Text(c,mode=="RESULT"?"SORTIE COMPLETE":"AETHER SKIFF // HANGAR",
+                Text(c,mode=="RESULT"?"SORTIE COMPLETE":"MAIN MENU // AETHER HANGAR",
                     Width*.08f,Height*.43f,17,orange);
                 Text(c,status,Width*.08f,Height*.50f,14,white);
-                Text(c,"BANKED SALVAGE: "+salvage+"      HIGH SCORE: "+points,
+                Text(c,"BANKED SALVAGE: "+salvage+"      RUN SCORE: "+points,
                     Width*.08f,Height*.59f,14,white);
                 string[] names={"HULL","WEAPON","REACTOR"};
                 for(int i=0;i<3;i++)
@@ -216,10 +243,10 @@ namespace EclipseHollowSky.Android
                     Text(c,levels[i]>=3?"MAX":("BUY "+(100*(levels[i]+1)*(levels[i]+1))),
                         left+10*density,top+38*density,10,white);
                 }
-                FillRect(c,Width*.64f,Height*.76f,Width*.96f,Height*.93f,
+                FillRect(c,Width*.60f,Height*.76f,Width*.89f,Height*.93f,
                     Color.Argb(246,41,115,139));
                 Text(c,mode=="RESULT"?"RELAUNCH":"LAUNCH SORTIE",
-                    Width*.80f,Height*.865f,21,white,true);
+                    Width*.745f,Height*.865f,21,white,true);
                 Text(c,"7 SIGNALS  /  DRONES  /  WARDEN",Width*.08f,Height*.91f,13,faint);
             }
             PostInvalidateDelayed(250);

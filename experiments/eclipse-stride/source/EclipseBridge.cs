@@ -10,7 +10,8 @@ namespace EclipseHollowSky
         private static Vector2 steer;
         private static bool fire, boost, brake, launch;
         private static int buyUpgrade = -1;
-        private static string mode = "HANGAR", message = "THE HOLLOW SKY";
+        private static string mode = "SPLASH", message = "POWERED BY STRIDE";
+        private static float progress;
         private static float hull = 3f, energy = 100, time = 90, fps;
         private static int credits, score, gateIndex, sector = 1;
         private static readonly int[] upgrades = new int[3];
@@ -41,20 +42,20 @@ namespace EclipseHollowSky
         }
         public static void Publish(string nextMode, string line, float nextHull, float nextEnergy,
                                    float nextTime, float tickFps, int nextScore, int nextCredits,
-                                   int nextGate, int nextSector, int[] nextUpgrades)
+                                   int nextGate, int nextSector, int[] nextUpgrades, float nextProgress)
         {
             lock (Gate)
             {
                 mode = nextMode; message = line; hull = nextHull; energy = nextEnergy;
                 time = nextTime; fps = tickFps; score = nextScore; credits = nextCredits;
-                gateIndex = nextGate; sector = nextSector;
+                gateIndex = nextGate; sector = nextSector; progress = nextProgress;
                 for (int i = 0; i < 3; i++) upgrades[i] = nextUpgrades[i];
             }
         }
         public static void Hud(out string displayMode, out string line, out float health,
                                out float reactor, out float clock, out float updateHz,
                                out int points, out int salvage, out int signal, out int currentSector,
-                               out int[] levels)
+                               out int[] levels, out float loadProgress)
         {
             lock (Gate)
             {
@@ -62,6 +63,7 @@ namespace EclipseHollowSky
                 clock = time; updateHz = fps; points = score; salvage = credits;
                 signal = gateIndex; currentSector = sector;
                 levels = (int[])upgrades.Clone();
+                loadProgress = progress;
             }
         }
         public static void ReleaseAll()

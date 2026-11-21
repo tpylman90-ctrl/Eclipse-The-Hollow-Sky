@@ -33,10 +33,14 @@ namespace EclipseHollowSky
         private float x, y, z, energy = 100f, timeLeft = 90f, shotCooldown, flashClock;
         private float tickHz = 60, messageTimer;
         private string message = "HANGAR READY";
-        private GameMode mode = GameMode.Hangar;
+        private GameMode mode = GameMode.Splash;
+        private int loadingStep;
+        private float loadingProgress;
+        private float transitionSeconds = 1.25f;
+        private bool sortiePrepared;
         private string savePath;
 
-        private enum GameMode { Hangar, Flight, Result }
+        private enum GameMode { Splash, Loading, Menu, SortieLoading, Flight, Result }
 
         private sealed class Beacon
         {
@@ -64,13 +68,10 @@ namespace EclipseHollowSky
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "eclipse_hollow_sky_stride_progress.txt");
             LoadProgress();
-            CreateMaterials();
-            CreateSky();
-            CreateSkiff();
-            CreateSector();
+            // Keep the game paused while Android displays the Stride splash.
+            // Scene construction runs in loading phases AFTER the splash.
             x = 0; y = 14; z = 18;
-            SetCraftTransform();
-            FollowCamera();
+            message = "POWERED BY STRIDE";
             Publish();
         }
 
@@ -302,7 +303,7 @@ namespace EclipseHollowSky
             x = 0; y = 14; z = 18;
             energy = 100 + upgrades[2] * 30;
             timeLeft = 90; shotCooldown = 0; message = "SIGNAL 01 / LAUNCH";
-            messageTimer = 4f; mode = GameMode.Flight;
+            messageTimer = 4f;
             foreach (var drone in hostiles)
             {
                 drone.Health = drone.Boss ? 8 : 2;
@@ -422,11 +423,84 @@ namespace EclipseHollowSky
             if (Input.IsKeyDown(Keys.LeftShift)) brake = true;
             if (Input.IsMouseButtonDown(MouseButton.Left)) fire = true;
             if (Input.IsKeyPressed(Keys.Enter)) start = true;
-            if (mode != GameMode.Flight)
+            if (mode == GameMode.Splash)
+            {
+                transitionSeconds -= dt;
+                if (transitionSeconds <= 0f)
+                {
+                    mode = GameMode.Loading;
+                    loadingStep = 0;
+                    loadingProgress = 0f;
+                    message = "INITIALIZING THE HOLLOW SKY";
+                }
+                Publish();
+                return;
+            }
+
+            if (mode == GameMode.Loading)
+            {
+                // This is actual scene initialization, not a decorative timer.
+                // One phase is performed per update so Android can repaint the
+                // progress screen between the expensive asset-creation phases.
+                switch (loadingStep)
+                {
+                    case 0: message = "PREPARING MATERIALS"; CreateMaterials(); break;
+                    case 1: message = "FORMING THE SKIES"; CreateSky(); break;
+                    case 2: message = "ASSEMBLING AETHER SKIFF"; CreateSkiff(); break;
+                    case 3: message = "BUILDING SECTOR 01"; CreateSector(); break;
+                    case 4:
+                        message = "CALIBRATING FLIGHT CAMERA";
+                        SetCraftTransform();
+                        FollowCamera();
+                        break;
+                    default:
+                        mode = GameMode.Menu;
+                        message = "HANGAR READY - CHOOSE YOUR SORTIE";
+                        loadingProgress = 1f;
+                        Publish();
+                        return;
+                }
+                loadingStep++;
+                loadingProgress = Math.Clamp(loadingStep / 5f, 0f, 1f);
+                Publish();
+                return;
+            }
+
+            if (mode == GameMode.Menu || mode == GameMode.Result)
             {
                 if (purchase >= 0) BuyUpgrade(purchase);
-                if (start) ResetSortie();
-                FollowCamera();
+                if (start)
+                {
+                    EclipseBridge.ReleaseAll();
+                    mode = GameMode.SortieLoading;
+                    sortiePrepared = false;
+                    loadingProgress = 0f;
+                    transitionSeconds = 0.90f;
+                    message = "PREPARING SECTOR 01";
+                }
+                Publish();
+                return;
+            }
+
+            if (mode == GameMode.SortieLoading)
+            {
+                if (!sortiePrepared)
+                {
+                    // Real sortie reset: enemies, ammo, skiff, gate progress,
+                    // health and timers are all reset while the loader is shown.
+                    ResetSortie();
+                    sortiePrepared = true;
+                    loadingProgress = 0.82f;
+                    message = "CHECKING THRUSTERS AND WEAPONS";
+                }
+                transitionSeconds -= dt;
+                if (transitionSeconds <= 0f)
+                {
+                    loadingProgress = 1f;
+                    mode = GameMode.Flight;
+                    message = "SIGNAL 01 - LAUNCH";
+                    messageTimer = 2.8f;
+                }
                 Publish();
                 return;
             }
@@ -475,11 +549,20 @@ namespace EclipseHollowSky
 
         private void Publish()
         {
-            string current = mode == GameMode.Hangar ? "HANGAR" :
-                             mode == GameMode.Result ? "RESULT" : "FLIGHT";
-            EclipseBridge.Publish(current, messageTimer > 0 ? message : "FOLLOW THE SIGNALS",
-                                  hull, energy, Math.Max(0, timeLeft), tickHz, score, bank,
-                                  gateIndex, sector, upgrades);
+            string current = mode switch
+            {
+                GameMode.Splash => "SPLASH",
+                GameMode.Loading => "LOADING",
+                GameMode.Menu => "MENU",
+                GameMode.SortieLoading => "SORTIE_LOADING",
+                GameMode.Flight => "FLIGHT",
+                _ => "RESULT"
+            };
+            string line = mode == GameMode.Flight && messageTimer <= 0f
+                ? "FOLLOW THE SIGNALS" : message;
+            EclipseBridge.Publish(current, line, hull, energy, Math.Max(0, timeLeft),
+                                  tickHz, score, bank, gateIndex, sector, upgrades,
+                                  loadingProgress);
         }
     }
 }

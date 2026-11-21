@@ -26,3 +26,10 @@ The official Stride FPS template provides a known-good NuGet/Android build *boot
 
 ## First phone QA
 Install signed APK, start the sortie, steer through the signals. Confirm skiff visible, camera follows, seven gates progress, left flight stick, fire/boost/brake, hangar upgrades and restart. Measure actual FPS/temperatures against the established Godot build. CI build success is **not** a substitute for an Android runtime test.
+
+## v2 startup and camera repair
+The Android application follows **Stride engine splash → staged game asset initialization → Eclipse main menu/hangar → sortie preparation → 3D flight**. Gate checks and the sortie timer are inactive while either loading screen is displayed. Initial loading actually creates shared PBR materials, cloud atmosphere, the Aether Skiff, the seven-gate environment, and calibrates the chase camera in separate update phases.
+
+The v1 screenshot showed gameplay HUD over a black renderer. It was traced to a mismatch between the custom camera's `Slot` and the GraphicsCompositor's active camera ID, compounded by a stale `DefaultScene` GUID. The v2 build reads those IDs from the generated project and verifies they are aligned before building. Gameplay buttons and the menu launch area have additional clearance from Android's right navigation area.
+
+v2 is built with a distinct Android application ID so it can be installed alongside v1. GitHub build checks validate the package, but the renderer's behavior still needs a device screenshot.
