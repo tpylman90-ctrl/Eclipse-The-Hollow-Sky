@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode diffuse_burley, specular_schlick_ggx;
+render_mode diffuse_burley, specular_schlick_ggx, cull_disabled;
 
 // ECLIPSE Ultra: brush-anisotropy impression, metal grain, microchips, clearcoat.
 // Geometry remains original. Detail lives in the material rather than texture imports.
