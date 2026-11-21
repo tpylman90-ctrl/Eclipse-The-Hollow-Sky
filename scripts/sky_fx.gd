@@ -9,6 +9,7 @@ var world
 var scenery: Node3D
 var cascades: Array[Node3D] = []
 var time_elapsed := 0.0
+var low_effects := false
 var shard_material: StandardMaterial3D
 var accent_material: StandardMaterial3D
 
@@ -206,3 +207,13 @@ func update_fx(delta: float, enabled: bool) -> void:
     # Very subtle structural motion; shader TIME provides the actual flow animation.
     for i in range(cascades.size()):
         cascades[i].rotation.z = sin(time_elapsed * 0.29 + float(i) * 2.03) * 0.013
+
+func set_low_effects(enabled: bool) -> void:
+    if low_effects == enabled:
+        return
+    low_effects = enabled
+    for i in range(cascades.size()):
+        cascades[i].visible = not low_effects or i % 2 == 0
+    var high_bank := scenery.get_node_or_null("CloudHighlight")
+    if high_bank != null:
+        high_bank.visible = not low_effects
