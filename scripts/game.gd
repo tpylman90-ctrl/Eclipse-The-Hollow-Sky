@@ -24,7 +24,8 @@ var art_director: Node3D
 var sky_fx
 var combat
 var render_budget
-var benchmark_unlocked := false
+var benchmark_mode := 0
+const BENCH_NAMES := ["VSYNC", "UNLOCKED", "CAP 60", "NO SHADOW"]
 
 var elapsed := 0.0
 var time_remaining := 88.0
@@ -437,11 +438,15 @@ func _apply_graphics() -> void:
 
 
 func _toggle_benchmark() -> void:
-    # VSync can cap measured FPS at the currently negotiated display refresh.
-    # This opt-in diagnostic is separate from visual presets; reset it to
-    # return to normal smooth presentation when finished benchmarking.
-    benchmark_unlocked = not benchmark_unlocked
+    # Cycle repeatable device tests without changing the scene/level:
+    # 0 = normal; 1 = remove frame pacing; 2 = thermal-friendly 60 FPS cap;
+    # 3 = shadow-off diagnostic (NOT a recommended graphics preset).
+    benchmark_mode = (benchmark_mode + 1) % BENCH_NAMES.size()
+    var capped: bool = benchmark_mode == 2
+    var unlocked: bool = benchmark_mode == 1 or benchmark_mode == 3
+    Engine.max_fps = 60 if capped else 0
     DisplayServer.window_set_vsync_mode(
-        DisplayServer.VSYNC_DISABLED if benchmark_unlocked else DisplayServer.VSYNC_ENABLED)
-    interface_layer.update_benchmark(benchmark_unlocked)
+        DisplayServer.VSYNC_DISABLED if unlocked else DisplayServer.VSYNC_ENABLED)
+    world.set_realtime_sun_shadows(benchmark_mode != 3)
+    interface_layer.update_benchmark(BENCH_NAMES[benchmark_mode])
     telemetry_elapsed = 1.0
