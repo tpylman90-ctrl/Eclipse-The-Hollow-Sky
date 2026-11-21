@@ -3,6 +3,7 @@ extends Node3D
 ## Effects are assembled from original geometry and lightweight Godot shaders.
 
 const FALL_SHADER = preload("res://shaders/aetherfall.gdshader")
+const MineralAtlas = preload("res://scripts/mineral_atlas.gd")
 const CLOUD_SHADER = preload("res://shaders/cloud_sea.gdshader")
 
 var world
@@ -44,6 +45,7 @@ func _build_cloud_ocean() -> void:
     bank.position = Vector3(0.0, -63.0, -560.0)
     var material := ShaderMaterial.new()
     material.shader = CLOUD_SHADER
+    material.set_shader_parameter("noise_atlas", MineralAtlas.get_atlas())
     material.set_shader_parameter("cloud_blue", Color("#355975"))
     material.set_shader_parameter("cloud_peach", Color("#876077"))
     material.set_shader_parameter("cloud_opacity", 0.61)
@@ -58,6 +60,7 @@ func _build_cloud_ocean() -> void:
     high_bank.scale = Vector3(1.25, 1.0, 1.25)
     var highlight := ShaderMaterial.new()
     highlight.shader = CLOUD_SHADER
+    highlight.set_shader_parameter("noise_atlas", MineralAtlas.get_atlas())
     highlight.set_shader_parameter("cloud_blue", Color("#405d80"))
     highlight.set_shader_parameter("cloud_peach", Color("#997e88"))
     highlight.set_shader_parameter("cloud_opacity", 0.32)
