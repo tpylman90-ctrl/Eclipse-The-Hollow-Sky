@@ -21,7 +21,7 @@ func _initialize() -> void:
 func _compile() -> void:
     DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(OUTPUT_DIR))
     var world := WorldScript.new()
-    world.name = "CompiledWorld"
+    world.name = "HollowSky"
     root.add_child(world)
     var art := ArtScript.new()
     art.name = "CompiledArchitecture"
@@ -40,7 +40,7 @@ func _compile() -> void:
     art.set_script(null)
     var world_ok := _save_tree(world, OUTPUT_DIR + "/world.scn")
     var art_ok := _save_tree(art, OUTPUT_DIR + "/architecture.scn")
-    if world_ok and art_ok:
+    if world_ok and art_ok and error_count == 0:
         print("ECLIPSE STAGE BAKE: PASS world=", world_metrics, " architecture=", art_metrics)
         quit(0)
     else:
@@ -75,8 +75,6 @@ func _batch_static(stage: Node3D, protect_gate_children: bool) -> Dictionary:
     var groups: Dictionary = {}
     for item in renderables:
         if item.mesh == null or item.mesh.get_surface_count() != 1:
-            continue
-        if item.mesh.surface_get_primitive_type(0) != Mesh.PRIMITIVE_TRIANGLES:
             continue
         var material: Material = item.material_override
         if material == null:
