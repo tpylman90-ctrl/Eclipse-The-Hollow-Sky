@@ -32,7 +32,7 @@ public sealed class GraphicsPreflightActivity : Activity
         message = new TextView(this) { TextSize = 15 };
         message.SetPadding(4, 4, 4, 14);
         root.AddView(message, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MatchParent, 0, 1));
+            ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent));
 
         var button = new Button(this) { Text = "START STRIDE 3D" };
         button.Click += (_, _) =>
