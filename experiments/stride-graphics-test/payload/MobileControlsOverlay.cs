@@ -72,7 +72,15 @@ public sealed class MobileControlsOverlay : View
 
     private void StartPointer(int id, float x, float y)
     {
-        if (fireId < 0 && CloseTo(x, y, fireX, fireY, fireRadius * 1.42f))
+        if (CloseTo(x, y, Width - 38f * density, 40f * density, 25f * density))
+        {
+            MobileTouchState.AdjustLookSensitivity(+0.25f);
+        }
+        else if (CloseTo(x, y, Width - 105f * density, 40f * density, 25f * density))
+        {
+            MobileTouchState.AdjustLookSensitivity(-0.25f);
+        }
+        else if (fireId < 0 && CloseTo(x, y, fireX, fireY, fireRadius * 1.42f))
         {
             fireId = id;
             MobileTouchState.SetFire(true);
@@ -117,8 +125,8 @@ public sealed class MobileControlsOverlay : View
             lastLookY = y;
             // The FPS camera expects a fraction of the screen width/height.
             MobileTouchState.AddLook(
-                dx * 2.35f / Math.Max(1f, Width),
-                -dy * 1.35f / Math.Max(1f, Height));
+                dx * (95f * MobileTouchState.LookSensitivity) / Math.Max(1f, Width),
+                -dy * (80f * MobileTouchState.LookSensitivity) / Math.Max(1f, Height));
         }
     }
 
@@ -228,7 +236,14 @@ public sealed class MobileControlsOverlay : View
         Caption(canvas, "RELOAD", reloadX, reloadY + 5f * density);
 
         text.Color = Color.Argb(185, 235, 245, 255);
-        Caption(canvas, "DRAG RIGHT SIDE TO LOOK", Width * 0.67f, 29f * density);
+        Caption(canvas, "DRAG RIGHT SIDE TO LOOK", Width * 0.63f, 29f * density);
+        Ring(canvas, Width - 105f * density, 40f * density, 25f * density, Color.Argb(190, 130, 215, 255));
+        Ring(canvas, Width - 38f * density, 40f * density, 25f * density, Color.Argb(190, 130, 215, 255));
+        Caption(canvas, "-", Width - 105f * density, 45f * density);
+        Caption(canvas, "+", Width - 38f * density, 45f * density);
+        Caption(canvas, "LOOK " + MobileTouchState.LookSensitivity.ToString("0.00") + "x", Width - 75f * density, 78f * density);
+        Caption(canvas, "UPDATE " + MobileTouchState.UpdateFps.ToString("0") + " FPS (approx)", Width * 0.34f, 25f * density);
         text.Color = Color.Argb(220, 240, 250, 255);
+        PostInvalidateDelayed(350);  // 3 Hz readout; does not run in the renderer loop
     }
 }
