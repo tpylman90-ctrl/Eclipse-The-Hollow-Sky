@@ -1,4 +1,6 @@
 extends Node3D
+
+const MineralAtlas = preload("res://scripts/mineral_atlas.gd")
 ## Deterministic, original world geometry. All meshes are made at runtime.
 
 const GATE_COUNT := 7
@@ -47,6 +49,7 @@ func _make_materials() -> void:
     var shader_asset := preload("res://shaders/strata.gdshader")
     var rock_shader := ShaderMaterial.new()
     rock_shader.shader = shader_asset
+    rock_shader.set_shader_parameter("mineral_atlas", MineralAtlas.get_atlas())
     rock_shader.set_shader_parameter("stone_tint", Color("#394b58"))
     rock_shader.set_shader_parameter("mineral_tint", Color("#6a7b83"))
     rock_shader.set_shader_parameter("stratum_frequency", 0.42)
@@ -54,6 +57,7 @@ func _make_materials() -> void:
     rock_material = rock_shader
     var cliff_shader := ShaderMaterial.new()
     cliff_shader.shader = shader_asset
+    cliff_shader.set_shader_parameter("mineral_atlas", MineralAtlas.get_atlas())
     cliff_shader.set_shader_parameter("stone_tint", Color("#384756"))
     cliff_shader.set_shader_parameter("mineral_tint", Color("#87918f"))
     cliff_shader.set_shader_parameter("stratum_frequency", 0.58)
@@ -122,10 +126,12 @@ func _make_atmosphere() -> void:
     sun.light_color = Color("#ffcb93")
     sun.light_energy = 1.63
     sun.shadow_enabled = true
-    sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
-    sun.directional_shadow_max_distance = 165.0
-    sun.directional_shadow_blend_splits = true
-    sun.shadow_blur = 1.35
+    sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
+    sun.directional_shadow_max_distance = 120.0
+    sun.directional_shadow_split_1 = 0.24
+    sun.directional_shadow_fade_start = 0.64
+    sun.directional_shadow_blend_splits = false
+    sun.shadow_blur = 1.0
     add_child(sun)
     var fill := DirectionalLight3D.new()
     fill.rotation_degrees = Vector3(-8.0, 134.0, 0.0)
