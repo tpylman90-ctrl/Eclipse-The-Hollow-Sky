@@ -31,7 +31,11 @@ namespace EclipseHollowSky
         private int[] upgrades = new int[3];
         private int bank, maxScore, score, salvage, gateIndex, hull, sector = 1;
         private float x, y, z, energy = 100f, timeLeft = 90f, shotCooldown, flashClock;
-        private float tickHz = 60, messageTimer;
+        private float tickHz = 60, messageTimer, benchElapsed;
+        private int quality = 1;
+        private string qualityPath;
+        private readonly List<(Entity Root, float CenterZ, bool IsCloud)> streaming =
+            new List<(Entity, float, bool)>();
         private string message = "HANGAR READY";
         private GameMode mode = GameMode.Splash;
         private int loadingStep;
@@ -68,6 +72,15 @@ namespace EclipseHollowSky
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
                 "eclipse_hollow_sky_stride_progress.txt");
             LoadProgress();
+            qualityPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "eclipse_stride_graphics_v3.txt");
+            try
+            {
+                if (File.Exists(qualityPath) && int.TryParse(File.ReadAllText(qualityPath), out int saved))
+                    quality = Math.Clamp(saved, 0, 2);
+            }
+            catch (IOException) { quality = 1; }
             // Keep the game paused while Android displays the Stride splash.
             // Scene construction runs in loading phases AFTER the splash.
             x = 0; y = 14; z = 18;
@@ -141,45 +154,37 @@ namespace EclipseHollowSky
 
         private void CreateSky()
         {
-            // Distant sun + cloud banks: scale is worldspace, deliberately sparse
-            // for Android GPU limits. Lighting comes from this scene's sun and fill.
-            Orb("Eclipse / far sun", "amber", -220, 170, -870, 45, 45, 45);
-            Random rng = new Random(23314);
-            for (int i = 0; i < 68; i++)
+            Orb("Eclipse / distant sun", "amber", -220, 170, -870, 45, 45, 45);
+            var rng = new Random(23314);
+            // Four shared cloud meshes replace 68 independent sphere submissions.
+            for (int group = 0; group < 4; group++)
             {
-                float cz = 40f - i * 19f;
-                float cx = (i % 2 == 0 ? -1 : 1) * (47f + (float)rng.NextDouble() * 80f);
-                float cy = -28f + (float)rng.NextDouble() * 22f;
-                Orb("Violet cloudbank " + i, "cloud", cx, cy, cz,
-                    23f + (float)rng.NextDouble() * 24f,
-                    4f + (float)rng.NextDouble() * 9f,
-                    13f + (float)rng.NextDouble() * 19f);
+                var b = new EclipseGeometry.Batch();
+                for (int i = group * 17; i < (group + 1) * 17; i++)
+                {
+                    float cz = 40f - i * 19f;
+                    float cx = (i % 2 == 0 ? -1 : 1) *
+                        (49f + (float)rng.NextDouble() * 83f);
+                    float cy = -26f + (float)rng.NextDouble() * 22f;
+                    b.Cloud(cx, cy, cz, 24f + (float)rng.NextDouble() * 25f,
+                        17f + (float)rng.NextDouble() * 25f);
+                }
+                var entity = b.Build("Layered cloudbank " + group, scene,
+                    Game.GraphicsDevice, materials);
+                streaming.Add((entity, 40f - (group * 17 + 8) * 19f, true));
             }
+            ApplyQuality();
         }
 
         private void CreateSkiff()
         {
             ship = new Entity("THE AETHER SKIFF");
             scene.Entities.Add(ship);
-            // Distinctive swept wings, twin booster nacelles, armor and canopy.
-            Box("Fuselage", "hull", 0, 0, -.3f, 1.6f, .45f, 4.9f, ship);
-            Box("Armored spine", "armor", 0, .27f, -.55f, 1.05f, .20f, 3.3f, ship);
-            Box("Tapered snout", "armor", 0, -.12f, -3.25f, .83f, .28f, 2.0f, ship);
-            Box("Keel", "hull", 0, -.3f, 1.1f, .92f, .31f, 3.0f, ship);
-            Orb("Canopy", "glass", 0, .51f, -.55f, .73f, .42f, 1.56f, ship);
-            Box("Canopy ridge", "aether", 0, .90f, -.57f, .045f, .04f, 1.90f, ship);
-            Box("Wing left", "hull", -2.55f, -.13f, .54f, 4.0f, .11f, 1.8f, ship);
-            Box("Wing right", "hull", 2.55f, -.13f, .54f, 4.0f, .11f, 1.8f, ship);
-            Box("Rear stabilizer", "armor", 0, .11f, 2.22f, 5.0f, .12f, .35f, ship);
-            for (int side = -1; side <= 1; side += 2)
-            {
-                float px = side * 2.65f;
-                Box("Outer pod", "armor", px, -.17f, 1.0f, .85f, .45f, 2.45f, ship);
-                Box("Engine cowling", "hull", side * 1.38f, -.26f, 2.10f, .70f, .58f, 1.47f, ship);
-                Orb("Aether plume", "aether", side * 1.38f, -.27f, 2.97f, .34f, .31f, .81f, ship);
-                Box("Wing accent", "aether", side * 2.2f, .01f, .12f, 1.93f, .035f, .21f, ship);
-                Box("Nose emitter", "amber", side * .45f, .02f, -4.12f, .30f, .10f, .10f, ship);
-            }
+            var build = new EclipseGeometry.Batch();
+            build.Skiff();
+            var visible = build.Build("Skiff / batched hard-surface chassis", scene,
+                Game.GraphicsDevice, materials);
+            visible.Transform.Parent = ship.Transform;
         }
 
         private Vector3 GateAt(int index)
@@ -211,27 +216,26 @@ namespace EclipseHollowSky
                 if (index == 4)
                     SpawnHostile(gate + new Vector3(0, 2, -35), true);
             }
-            // Freestanding rock islands with ruin columns, wind-carved bridges,
-            // crystals and open air between. No invisible track/road exists.
-            for (int i = 0; i < 40; i++)
+            // Eight frustum-cullable sector chunks, each with one mesh per
+            // shared material. Angular rock formations and temple ruins are
+            // triangulated together instead of hundreds of object submissions.
+            for (int group = 0; group < 8; group++)
             {
-                float wz = -17 - i * 24f;
-                float wx = (i % 2 == 0 ? -1 : 1) * (31f + (float)rand.NextDouble() * 58f);
-                float wy = -6f + (float)rand.NextDouble() * 31f;
-                float scale = 7f + (float)rand.NextDouble() * 10f;
-                Orb("Floating rock mass", "rock", wx, wy, wz, scale, scale * .47f, scale * .94f);
-                Orb("Cliff underside", "cliff", wx, wy - scale * .37f, wz, scale * .61f, scale * .73f, scale * .66f);
-                Box("Ruin platform", "ivory", wx, wy + scale * .36f, wz,
-                    scale * 1.05f, .95f, scale * .78f);
-                for (int k = 0; k < 2; k++)
+                var builder = new EclipseGeometry.Batch();
+                for (int i = group * 5; i < (group + 1) * 5; i++)
                 {
-                    float dx = (k == 0 ? -1 : 1) * scale * .32f;
-                    Box("Ancient pillar", "ruin", wx + dx, wy + scale * .36f + 3.5f, wz,
-                        1.7f, 7.0f + (i % 3), 1.8f);
-                    Orb("Aether crystal", "aether", wx + dx, wy + scale * .36f + 7.3f, wz,
-                        .9f, 2.5f, .9f);
+                    float wz = -17 - i * 24f;
+                    float wx = (i % 2 == 0 ? -1 : 1) *
+                        (31f + (float)rand.NextDouble() * 58f);
+                    float wy = -6f + (float)rand.NextDouble() * 31f;
+                    float size = 7f + (float)rand.NextDouble() * 10f;
+                    builder.Island(wx, wy, wz, size, 100 + i * 13);
                 }
+                var root = builder.Build("Wind-cut islands " + group, scene,
+                    Game.GraphicsDevice, materials);
+                streaming.Add((root, -17f - (group * 5 + 2f) * 24f, false));
             }
+            ApplyQuality();
         }
 
         private void SpawnHostile(Vector3 pos, bool elite)
@@ -250,6 +254,44 @@ namespace EclipseHollowSky
                 Orb("Drone reactor", "aether", sign * 2.4f * size, -.13f, .85f * size,
                     .45f * size, .30f * size, .60f * size, root);
             hostiles.Add(new Hostile { Root = root, Base = pos, Health = elite ? 8 : 2, Boss = elite });
+        }
+
+        private void ApplyQuality()
+        {
+            float islandDistance = quality == 0 ? 270f : quality == 1 ? 470f : 830f;
+            float cloudDistance = quality == 0 ? 330f : quality == 1 ? 620f : 950f;
+            foreach (var chunk in streaming)
+                chunk.Root.Get<ModelComponent>().Enabled =
+                    Math.Abs(chunk.CenterZ - z) < (chunk.IsCloud ? cloudDistance : islandDistance);
+            var sun = scene.Entities.FirstOrDefault(e => e.Name == "WarmLowSun");
+            var direct = sun?.Get<LightComponent>()?.Type as Stride.Rendering.Lights.LightDirectional;
+            if (direct != null) direct.Shadow.Enabled = quality == 2;
+        }
+
+        private void ChangeQuality()
+        {
+            quality = (quality + 1) % 3;
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(qualityPath));
+                File.WriteAllText(qualityPath, quality.ToString(CultureInfo.InvariantCulture));
+            }
+            catch (IOException) { /* Gameplay can continue without persisting UI preferences. */ }
+            ApplyQuality();
+            // Stride 4.4 can resize its Android off-screen backbuffer. Keep
+            // resolution and scenery distance as independent GPU budget levers.
+            try
+            {
+                var graphics = Game.GraphicsDeviceManager;
+                graphics.PreferredBackBufferWidth = quality == 0 ? 720 : quality == 1 ? 960 : 1280;
+                graphics.PreferredBackBufferHeight = quality == 0 ? 405 : quality == 1 ? 540 : 720;
+                graphics.ApplyChanges();
+                message = "GRAPHICS " + new[] { "PERFORMANCE", "BALANCED", "QUALITY" }[quality];
+            }
+            catch (Exception)
+            {
+                message = "SCENERY QUALITY CHANGED - KEEPING DEVICE RESOLUTION";
+            }
         }
 
         private void SetCraftTransform()
@@ -414,7 +456,7 @@ namespace EclipseHollowSky
             dt = Math.Min(dt, .05f);
             tickHz = tickHz * .92f + .08f / dt;
             EclipseBridge.Input(out var stick, out bool fire, out bool boost,
-                                out bool brake, out bool start, out int purchase);
+                                out bool brake, out bool start, out int purchase, out bool cycleQuality);
             if (Input.IsKeyDown(Keys.A)) stick.X -= 1;
             if (Input.IsKeyDown(Keys.D)) stick.X += 1;
             if (Input.IsKeyDown(Keys.W)) stick.Y += 1;
@@ -481,6 +523,7 @@ namespace EclipseHollowSky
             if (mode == GameMode.Menu || mode == GameMode.Result)
             {
                 if (purchase >= 0) BuyUpgrade(purchase);
+                if (cycleQuality) ChangeQuality();
                 if (start)
                 {
                     EclipseBridge.ReleaseAll();
@@ -526,7 +569,26 @@ namespace EclipseHollowSky
             y = Math.Clamp(y + Math.Clamp(stick.Y, -1, 1) * dt * 30f, -5f, 45f);
             z -= speed * dt;
             timeLeft -= dt;
-            SetCraftTransform(); FollowCamera();
+            SetCraftTransform(); FollowCamera(); ApplyQuality();
+            benchElapsed += dt;
+            if (benchElapsed >= 10f)
+            {
+                benchElapsed = 0;
+                // Output a compact per-device 10 second sample to app-private
+                // storage, alongside visible HUD counters for screenshot QA.
+                try
+                {
+                    string csv = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture) + "," +
+                        quality + "," + Game.DrawTime.FramePerSecond.ToString("F1", CultureInfo.InvariantCulture) +
+                        "," + Game.GraphicsDevice.FrameDrawCalls + "," +
+                        Game.GraphicsDevice.FrameTriangleCount + "," +
+                        (GC.GetTotalMemory(false) / (1024 * 1024)) + Environment.NewLine;
+                    File.AppendAllText(Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                        "eclipse_stride_v3_benchmark.csv"), csv);
+                }
+                catch (IOException) { /* No file access must never end a sortie. */ }
+            }
             shotCooldown -= dt;
             if (fire && shotCooldown <= 0)
             {
@@ -573,7 +635,12 @@ namespace EclipseHollowSky
             string line = mode == GameMode.Flight && messageTimer <= 0f
                 ? "FOLLOW THE SIGNALS" : message;
             EclipseBridge.Publish(current, line, hull, energy, Math.Max(0, timeLeft),
-                                  tickHz, score, bank, gateIndex, sector, upgrades,
+                                  tickHz, Game.DrawTime.FramePerSecond,
+                                  (float)Game.UpdateTime.TimePerFrame.TotalMilliseconds,
+                                  (int)Game.GraphicsDevice.FrameDrawCalls,
+                                  (int)Game.GraphicsDevice.FrameTriangleCount,
+                                  GC.GetTotalMemory(false) / (1024f * 1024f),
+                                  quality, score, bank, gateIndex, sector, upgrades,
                                   loadingProgress);
         }
     }
