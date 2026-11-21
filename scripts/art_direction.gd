@@ -18,8 +18,19 @@ var atmosphere: StandardMaterial3D
 var structural: Node3D
 var seed := 260119
 
+const BAKED_ARCHITECTURE := "res://generated/architecture.scn"
+
+
 func _ready() -> void:
     world = get_parent().get_node("HollowSky")
+    if ResourceLoader.exists(BAKED_ARCHITECTURE):
+        var packed := load(BAKED_ARCHITECTURE) as PackedScene
+        if packed != null:
+            var stage := packed.instantiate() as Node3D
+            if stage != null:
+                add_child(stage)
+                print("ECLIPSE: offline-baked architecture loaded")
+                return
     structural = Node3D.new()
     structural.name = "RuinsAndMonuments"
     add_child(structural)
