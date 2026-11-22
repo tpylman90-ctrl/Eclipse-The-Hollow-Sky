@@ -68,8 +68,7 @@ Tags: []
 Source: !file ../../Resources/Blender/${name}_albedo_ao.png
 Type: !ColorTextureType
     ColorKeyColor: {R: 255, G: 0, B: 255, A: 255}
-    Alpha: None
-GenerateMipmaps: true
+    Alpha: Interpolated
 IsStreamable: false
 "@
     [System.IO.File]::WriteAllText((Join-Path $texDir "$name.sdtex"), $sdtex)
