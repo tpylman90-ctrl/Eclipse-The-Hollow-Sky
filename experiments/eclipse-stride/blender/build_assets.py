@@ -256,6 +256,9 @@ def render_preview(ob,name,out_dir):
     scene.world.color=(.09,.12,.20)
     scene.render.resolution_x=960;scene.render.resolution_y=640;scene.render.resolution_percentage=100
     scene.cycles.samples=16
+    for layer in scene.view_layers:
+        if hasattr(layer.cycles,'use_denoising'):
+            layer.cycles.use_denoising=False
     scene.render.image_settings.file_format='PNG'
     scene.render.filepath=os.path.join(out_dir,name+'_preview.png')
     bpy.ops.render.render(write_still=True)
