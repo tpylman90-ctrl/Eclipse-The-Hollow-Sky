@@ -267,7 +267,7 @@ def bake_atlas(ob,basename,size,out_dir):
     # On some Ubuntu Blender builds Cycles returns an entirely black bake
     # for a densely joined hard-surface mesh even with valid UV coordinates.
     # Detect it and compute a guaranteed usable offline UV atlas instead.
-    if max(base.pixels[::4]) < .04:
+    if max(list(base.pixels[:])[0::4]) < .04:
         print('BAKE FAILURE DETECTED:',basename,'- applying offline UV material raster fallback')
         baked_color,baked_ao=raster_fallback(ob,size)
         base.pixels.foreach_set(baked_color.ravel())
@@ -286,7 +286,7 @@ def bake_atlas(ob,basename,size,out_dir):
     final.pixels[:]=color_pix
     final.filepath_raw=os.path.join(out_dir,basename+'_albedo_ao.png')
     final.file_format='PNG';final.save()
-    if max(final.pixels[::4]) < .04:
+    if max(list(final.pixels[:])[0::4]) < .04:
         raise RuntimeError(basename+' output atlas is black')
     baked=bpy.data.materials.new('BAKED')
     baked.use_nodes=True
