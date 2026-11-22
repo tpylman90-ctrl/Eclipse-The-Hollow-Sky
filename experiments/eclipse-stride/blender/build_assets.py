@@ -20,6 +20,7 @@ def clear():
 def paint(name, rgb, metallic=0.0, roughness=0.7):
     m=bpy.data.materials.new(name)
     m.use_nodes=True
+    m['atlas_rgb']=list(rgb)
     p=m.node_tree.nodes.get('Principled BSDF')
     p.inputs['Base Color'].default_value=(*rgb,1)
     p.inputs['Metallic'].default_value=metallic
@@ -183,6 +184,54 @@ def create_island():
         cylinder('Aether beacon cap',(s*2.88,-2.62,6.35),.38,.75,crystal,8)
     return 'EclipseIsland',768
 
+
+def raster_fallback(ob,size):
+    """Per-face UV/colour/AO raster fallback for headless Blender bugs.
+    All work happens offline in Actions, not on the Android device.
+    """
+    import numpy as np
+    rgb=np.zeros((size,size,4),dtype=np.float32)
+    occl=np.zeros((size,size,4),dtype=np.float32)
+    rgb[:,:,3]=1.;occl[:,:,3]=1.
+    uvdata=ob.data.uv_layers.active.data
+    coverage=0
+    for polygon in ob.data.polygons:
+        if len(polygon.loop_indices)!=3: continue
+        p=[uvdata[i].uv for i in polygon.loop_indices]
+        points=[(q.x*(size-1),q.y*(size-1)) for q in p]
+        x0=max(0,int(math.floor(min(q[0] for q in points))))
+        y0=max(0,int(math.floor(min(q[1] for q in points))))
+        x1=min(size,int(math.ceil(max(q[0] for q in points)))+1)
+        y1=min(size,int(math.ceil(max(q[1] for q in points)))+1)
+        if x1<=x0 or y1<=y0:continue
+        (ax,ay),(bx,by),(cx,cy)=points
+        den=(by-cy)*(ax-cx)+(cx-bx)*(ay-cy)
+        if abs(den)<1e-6:continue
+        yy,xx=np.mgrid[y0:y1,x0:x1]
+        wx=((by-cy)*(xx-cx)+(cx-bx)*(yy-cy))/den
+        wy=((cy-ay)*(xx-cx)+(ax-cx)*(yy-cy))/den
+        wz=1.-wx-wy
+        inside=(wx>=-.00001)&(wy>=-.00001)&(wz>=-.00001)
+        if not np.any(inside):continue
+        coverage+=int(np.count_nonzero(inside))
+        mat=ob.data.materials[polygon.material_index]
+        col=mat.get('atlas_rgb',[.38,.53,.64])
+        face=max(0.,min(1.,polygon.normal.z))
+        exposure=.84+.16*face
+        # Low-amplitude machined and stone surface variation.
+        noise=.94+.06*np.sin(xx*.21+yy*.37)
+        area=rgb[y0:y1,x0:x1]
+        for k in range(3):
+            plane=area[:,:,k]
+            plane[inside]=np.clip(float(col[k])*exposure*noise[inside],.02,1.)
+        ao_region=occl[y0:y1,x0:x1]
+        factor=.66+.31*face
+        for k in range(3):
+            plane=ao_region[:,:,k];plane[inside]=factor
+    if coverage<=size*size*.005:
+        raise RuntimeError('UV raster fallback covered too few texels')
+    return rgb,occl
+
 def bake_atlas(ob,basename,size,out_dir):
     scene=bpy.context.scene
     scene.render.engine='CYCLES'
@@ -215,6 +264,15 @@ def bake_atlas(ob,basename,size,out_dir):
     bpy.ops.object.bake(type='AO')
     ambient.filepath_raw=os.path.join(out_dir,basename+'_ao.png')
     ambient.file_format='PNG';ambient.save()
+    # On some Ubuntu Blender builds Cycles returns an entirely black bake
+    # for a densely joined hard-surface mesh even with valid UV coordinates.
+    # Detect it and compute a guaranteed usable offline UV atlas instead.
+    if max(base.pixels[::4]) < .04:
+        print('BAKE FAILURE DETECTED:',basename,'- applying offline UV material raster fallback')
+        baked_color,baked_ao=raster_fallback(ob,size)
+        base.pixels.foreach_set(baked_color.ravel())
+        ambient.pixels.foreach_set(baked_ao.ravel())
+        base.save();ambient.save()
     # AO multiplied into the color atlas conservatively, to preserve the
     # dynamic sunlight response in Stride while cheaply adding crevice depth.
     color_pix=list(base.pixels[:]);ao_pix=list(ambient.pixels[:])
@@ -228,6 +286,8 @@ def bake_atlas(ob,basename,size,out_dir):
     final.pixels[:]=color_pix
     final.filepath_raw=os.path.join(out_dir,basename+'_albedo_ao.png')
     final.file_format='PNG';final.save()
+    if max(final.pixels[::4]) < .04:
+        raise RuntimeError(basename+' output atlas is black')
     baked=bpy.data.materials.new('BAKED')
     baked.use_nodes=True
     nodes=baked.node_tree.nodes

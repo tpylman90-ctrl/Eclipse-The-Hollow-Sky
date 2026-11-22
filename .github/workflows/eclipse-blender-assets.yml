@@ -29,7 +29,7 @@ jobs:
       - name: Install free Blender CPU build
         run: |
           sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y blender python3-numpy
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y blender python3-numpy python3-pil
           blender --version
       - name: Generate original game assets and pre-bake textures
         run: |
@@ -41,6 +41,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import json, pathlib, struct
+          from PIL import Image, ImageStat
           root=pathlib.Path('experiments/eclipse-stride/.generated/blender')
           data=json.loads((root/'manifest.json').read_text())
           assert len(data['assets']) == 2
@@ -55,7 +56,10 @@ jobs:
                   p=root/texture
                   assert p.stat().st_size>1000, str(p)
                   assert p.open('rb').read(8)==bytes.fromhex('89504e470d0a1a0a')
-              print(name,'tris',asset['triangles'],'GLB bytes',len(raw))
+              atlas=Image.open(root/(name+'_albedo_ao.png')).convert('RGB')
+              mean=ImageStat.Stat(atlas).mean
+              assert sum(mean)/3>8, (name,'INVALID BLACK ATLAS',mean)
+              print(name,'tris',asset['triangles'],'GLB bytes',len(raw),'atlas mean',mean)
           PY
       - name: Publish Blender GLBs, pre-baked atlases, previews and manifest
         uses: actions/upload-artifact@v4
