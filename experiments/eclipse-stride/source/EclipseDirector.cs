@@ -23,6 +23,7 @@ namespace EclipseHollowSky
         private Scene scene;
         private Entity ship;
         private Entity camera;
+        private Model bakedIslandModel;
         private readonly Dictionary<string, Material> materials = new Dictionary<string, Material>();
         private readonly Dictionary<string, Model> primitives = new Dictionary<string, Model>();
         private readonly List<Beacon> beacons = new List<Beacon>();
@@ -155,36 +156,33 @@ namespace EclipseHollowSky
 
         private void CreateSky()
         {
-            Orb("Eclipse / distant sun", "amber", -220, 170, -870, 45, 45, 45);
-            var rng = new Random(23314);
-            // Four shared cloud meshes replace 68 independent sphere submissions.
-            for (int group = 0; group < 4; group++)
-            {
-                var b = new EclipseGeometry.Batch();
-                for (int i = group * 17; i < (group + 1) * 17; i++)
-                {
-                    float cz = 40f - i * 19f;
-                    float cx = (i % 2 == 0 ? -1 : 1) *
-                        (49f + (float)rng.NextDouble() * 83f);
-                    float cy = -26f + (float)rng.NextDouble() * 22f;
-                    b.Cloud(cx, cy, cz, 24f + (float)rng.NextDouble() * 25f,
-                        17f + (float)rng.NextDouble() * 25f);
-                }
-                var entity = b.Build("Layered cloudbank " + group, scene,
-                    Game.GraphicsDevice, materials);
-                streaming.Add((entity, 40f - (group * 17 + 8) * 19f, true));
-            }
-            ApplyQuality();
+            // V4: the old procedural rings looked like holes in the sky.
+            // Keep lighting and sky until proper atmospheric cloud cards are ready.
+            Orb("Eclipse / distant sun", "amber", -220, 170, -870, 43, 43, 43);
         }
 
         private void CreateSkiff()
         {
             ship = new Entity("THE AETHER SKIFF");
             scene.Entities.Add(ship);
-            var build = new EclipseGeometry.Batch();
-            build.Skiff();
-            build.Build("Skiff / batched hard-surface chassis", scene,
-                Game.GraphicsDevice, materials, ship);
+            try
+            {
+                var model = Game.Content.Load<Model>("Models/EclipseSkiff");
+                if (model == null) throw new InvalidOperationException("Model unavailable");
+                var loaded = new Entity("Blender baked Aether Skiff") {
+                    new ModelComponent(model)
+                };
+                loaded.Transform.Parent = ship.Transform;
+            }
+            catch (Exception ex)
+            {
+                // Preserve a visible fallback craft, never strand a flight.
+                System.Diagnostics.Debug.WriteLine("Blender skiff import: " + ex);
+                var fallback = new EclipseGeometry.Batch();
+                fallback.Skiff();
+                fallback.Build("Fallback craft",scene,Game.GraphicsDevice,materials,ship);
+                message = "ASSET IMPORT FALLBACK: SKIFF";
+            }
         }
 
         private Vector3 GateAt(int index)
@@ -216,24 +214,49 @@ namespace EclipseHollowSky
                 if (index == 4)
                     SpawnHostile(gate + new Vector3(0, 2, -35), true);
             }
-            // Eight frustum-cullable sector chunks, each with one mesh per
-            // shared material. Angular rock formations and temple ruins are
-            // triangulated together instead of hundreds of object submissions.
-            for (int group = 0; group < 8; group++)
+            // Imported Blender geometry with pre-baked AO/albedo UV atlas.
+            // One source model is shared by all the island entities;
+            // distance culling bounds far-scene render work.
+            try
             {
-                var builder = new EclipseGeometry.Batch();
-                for (int i = group * 5; i < (group + 1) * 5; i++)
+                bakedIslandModel = Game.Content.Load<Model>("Models/EclipseIsland");
+                if (bakedIslandModel == null)
+                    throw new InvalidOperationException("Baked island missing");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Blender island import: " + ex);
+                bakedIslandModel = null;
+                message = "ASSET IMPORT FALLBACK: ISLANDS";
+            }
+            for (int i = 0; i < 24; i++)
+            {
+                float wz = -45f - i * 41f;
+                float wx = (i % 2 == 0 ? -1 : 1) *
+                    (30f + (float)rand.NextDouble() * 46f);
+                float wy = -8f + (float)rand.NextDouble() * 18f;
+                float size = .72f + (float)rand.NextDouble() * .39f;
+                Entity island;
+                if (bakedIslandModel != null)
                 {
-                    float wz = -17 - i * 24f;
-                    float wx = (i % 2 == 0 ? -1 : 1) *
-                        (31f + (float)rand.NextDouble() * 58f);
-                    float wy = -6f + (float)rand.NextDouble() * 31f;
-                    float size = 7f + (float)rand.NextDouble() * 10f;
-                    builder.Island(wx, wy, wz, size, 100 + i * 13);
+                    island = new Entity("Blender UV-baked sky isle " + i) {
+                        new ModelComponent(bakedIslandModel)
+                    };
+                    scene.Entities.Add(island);
+                    island.Transform.Scale = new Vector3(size);
+                    island.Transform.Rotation = Quaternion.RotationYawPitchRoll(
+                        (float)rand.NextDouble() * 6.28f, 0, 0);
                 }
-                var root = builder.Build("Wind-cut islands " + group, scene,
-                    Game.GraphicsDevice, materials);
-                streaming.Add((root, -17f - (group * 5 + 2f) * 24f, false));
+                else
+                {
+                    // Emergency fallback only, not the intended v4 visual.
+                    var fallback = new EclipseGeometry.Batch();
+                    fallback.Island(0, 0, 0, 9f, i * 13);
+                    island = fallback.Build("Fallback rock "+i,scene,Game.GraphicsDevice,materials);
+                    island.Transform.Scale = new Vector3(size);
+                }
+                island.Transform.Position = new Vector3(wx, wy, wz);
+                streaming.Add((island, wz, false));
             }
             ApplyQuality();
         }
