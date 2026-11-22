@@ -3,6 +3,9 @@ name: Build Eclipse Stride Android Game
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
+      - feature/eclipse-stride-v3-graphics
     paths:
       - '.github/workflows/eclipse-stride-android.yml'
       - 'experiments/eclipse-stride/**'

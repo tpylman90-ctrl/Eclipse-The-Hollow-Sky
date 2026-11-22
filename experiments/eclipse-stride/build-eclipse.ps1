@@ -34,6 +34,15 @@ Copy-Item (Join-Path $root "source/EclipseDirector.cs") (Join-Path $gameDir "Ecl
 Copy-Item (Join-Path $root "source/EclipseGeometry.cs") (Join-Path $gameDir "EclipseGeometry.cs") -Force
 Copy-Item (Join-Path $root "source/EclipseActivity.cs") (Join-Path $androidDir "EclipseActivity.cs") -Force
 Copy-Item (Join-Path $root "source/FlightHud.cs") (Join-Path $androidDir "FlightHud.cs") -Force
+# Blender bakes run once on the GitHub Linux runner. Windows asset compiler
+# consumes their GLBs and the real AO-textured atlas files.
+if (-not $env:ECLIPSE_BAKED_ASSETS -or -not (Test-Path $env:ECLIPSE_BAKED_ASSETS)) {
+    throw "Eclipse Blender v4 requires a verified baked-assets artifact"
+}
+& (Join-Path $root "blender/import-baked-assets.ps1") -AssetsRoot $assetsDir `
+    -ResourcesRoot (Join-Path $project "Resources") -GameRoot $gameDir `
+    -BakeRoot $env:ECLIPSE_BAKED_ASSETS
+if (-not $?) { throw "Blender / Stride asset import failed" }
 
 # Stride starter TEMPLATE is 4.4.4; published Stride runtime NuGet packages
 # are 4.4.3, matching the verified v2 build. Pin runtime packages explicitly.
@@ -87,7 +96,7 @@ Write-Host "Verified Eclipse default scene: $sceneGuid"
 $androidProject = Join-Path $androidDir "StrideGraphicsTest.Android.csproj"
 $xml = [System.IO.File]::ReadAllText($androidProject)
 $xml = [regex]::Replace($xml, '<ApplicationId>[^<]+</ApplicationId>',
-    '<ApplicationId>com.neonfoundry.eclipse.stride.game.v3</ApplicationId>')
+    '<ApplicationId>com.neonfoundry.eclipse.stride.game.v4</ApplicationId>')
 $xml = $xml.Replace("<AndroidApplicationIcon>@mipmap/appicon</AndroidApplicationIcon>",
     "<AndroidApplicationIcon>@mipmap/appicon</AndroidApplicationIcon>`n" +
     "<EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>`n" +
@@ -105,6 +114,11 @@ if ((Get-ChildItem $gameDir -Recurse -File -Filter "*.cs").Count -ne 3) {
     throw "Incorrect game scripts: FPS scripts may remain"
 }
 
+# Assert both authored Blender models and baked colors entered the source package.
+foreach ($name in @("EclipseSkiff","EclipseIsland")) {
+    if (-not (Test-Path (Join-Path $assetsDir "Models/$name.sdm3d"))) { throw "Missing Blender model asset: $name" }
+    if (-not (Test-Path (Join-Path $assetsDir "Textures/$name.sdtex"))) { throw "Missing Blender baked material atlas: $name" }
+}
 # Save source before compilation so every run can be reproduced.
 Compress-Archive -Path $project -DestinationPath (Join-Path $artifact "eclipse-stride-source.zip") -Force
 
@@ -147,5 +161,5 @@ try {
     Write-Host "Verified original Eclipse game APK: $($apk.Length) bytes; $($entries.Count) ZIP entries"
 }
 finally { $zip.Dispose() }
-Copy-Item $apk.FullName (Join-Path $artifact "Eclipse-The-Hollow-Sky-Stride-v3.apk") -Force
+Copy-Item $apk.FullName (Join-Path $artifact "Eclipse-The-Hollow-Sky-Stride-Blender-v4.apk") -Force
 Write-Host "Eclipse Android game APK ready."

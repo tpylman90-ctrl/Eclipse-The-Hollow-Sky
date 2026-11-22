@@ -53,3 +53,37 @@ The Android application follows **Stride engine splash → staged game asset ini
 The v1 screenshot showed gameplay HUD over a black renderer. It was traced to a mismatch between the custom camera's `Slot` and the GraphicsCompositor's active camera ID, compounded by a stale `DefaultScene` GUID. The v2 build reads those IDs from the generated project and verifies they are aligned before building. Gameplay buttons and the menu launch area have additional clearance from Android's right navigation area.
 
 v2 is built with a distinct Android application ID so it can be installed alongside v1. GitHub build checks validate the package, but the renderer's behavior still needs a device screenshot.
+
+## Blender-authored v4 graphics experiment
+
+This is a separate **Blender -> Stride -> Android** path, not a continuation of the
+C#-generated island renderer. The last signed v3 is still archived unchanged.
+
+### Offline mesh and texture production
+- `blender/build_assets.py` generates the original hard-surface skiff and an
+  architectural floating island on a free Ubuntu GitHub runner.
+- Geometry is joined into an individual mesh per asset, triangulated, and given
+  one UV atlas per mesh.
+- Cycles CPU bakes diffuse surface color and ambient occlusion to PNG;
+  the combined atlas is exported into each `.glb` model. No runtime procedural
+  color shaders are required for the baked meshes.
+- The source generator also produces GLB previews and a triangle/UV report.
+- `.github/workflows/eclipse-blender-assets.yml` validates asset signatures and
+  then hands them to Windows's Stride asset compiler in the same workflow run.
+- `blender/import-baked-assets.ps1` creates Stride `.sdm3d`, `.sdmat` and
+  `.sdtex` assets rooted in the generated game package; the models are loaded
+  into `EclipseDirector` by content URL.
+
+### Mobile visual and performance validation
+
+On the phone, confirm that the Aether Skiff and floating islands have baked,
+textured surfaces rather than flat-colored fallback geometry. A message
+`ASSET IMPORT FALLBACK` means Stride could not load the expected model; report
+that explicitly. Also verify the scene renders properly at each graphics preset.
+The existing HUD's zero draw-call/triangle readings should not be treated as
+valid GPU metrics. Focus on actual render FPS and visible scene quality.
+
+This v4 experiment does **not** include runtime image-based lighting, normal-map
+baking, automatic ASTC compression certification, or an atmospheric skybox.
+No download-only artifact or cloud build can verify runtime rendering on the
+physical phone.
