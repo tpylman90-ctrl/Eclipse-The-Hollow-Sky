@@ -29,7 +29,7 @@ jobs:
       - name: Install free Blender CPU build
         run: |
           sudo apt-get update -qq
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y blender
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y blender python3-numpy
           blender --version
       - name: Generate original game assets and pre-bake textures
         run: |
