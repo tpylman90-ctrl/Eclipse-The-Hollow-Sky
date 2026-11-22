@@ -44,7 +44,7 @@ foreach ($name in $names) {
     $sdm3d = @"
 !Model
 Id: $modelId
-SerializedVersion: {Stride: 2.1.0.0}
+SerializedVersion: {Stride: 2.0.0.0}
 Tags: []
 Source: !file ../../Resources/Blender/$name.glb
 Skeleton: null
