@@ -1,0 +1,64 @@
+name: Eclipse Blender - Original Baked Asset Foundry
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - feature/eclipse-blender-baked-assets
+    paths:
+      - 'experiments/eclipse-stride/blender/**'
+      - '.github/workflows/eclipse-blender-assets.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eclipse-blender-asset-foundry
+  cancel-in-progress: true
+
+jobs:
+  blender-bake:
+    name: Build Blender hard-surface assets and bake UV atlases
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+      - name: Install free Blender CPU build
+        run: |
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y blender
+          blender --version
+      - name: Generate original game assets and pre-bake textures
+        run: |
+          mkdir -p experiments/eclipse-stride/.generated/blender
+          blender --background --factory-startup --python-exit-code 1 \
+            --python experiments/eclipse-stride/blender/build_assets.py -- \
+            --out experiments/eclipse-stride/.generated/blender
+      - name: Verify GLBs, baked PNGs and poly budgets
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, struct
+          root=pathlib.Path('experiments/eclipse-stride/.generated/blender')
+          data=json.loads((root/'manifest.json').read_text())
+          assert len(data['assets']) == 2
+          for asset in data['assets']:
+              name=asset['asset']
+              mesh=root/(name+'.glb')
+              raw=mesh.read_bytes()
+              assert raw[:4]==b'glTF', (name,'GLB header invalid')
+              assert struct.unpack('<I',raw[8:12])[0]==len(raw), (name,'GLB size mismatch')
+              assert asset['triangles'] < 35000
+              for texture in asset['textures']+[asset['preview']]:
+                  p=root/texture
+                  assert p.stat().st_size>1000, str(p)
+                  assert p.open('rb').read(8)==bytes.fromhex('89504e470d0a1a0a')
+              print(name,'tris',asset['triangles'],'GLB bytes',len(raw))
+          PY
+      - name: Publish Blender GLBs, pre-baked atlases, previews and manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: eclipse-blender-original-baked-assets
+          path: experiments/eclipse-stride/.generated/blender/
+          if-no-files-found: error
+          retention-days: 30
